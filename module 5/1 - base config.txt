@@ -1,0 +1,379 @@
+isp-a...
+
+en
+term length 40
+conf t
+vtp mode transparent
+alias exec ib sh ip int br
+int f0/3/3
+shut
+int vl 99
+shut
+default int f0/3/0
+int f0/3/0
+switchport access vlan 101
+no shut
+int vl 101
+no shut
+ip addr 10.10.1.1 255.255.255.0
+ip router isis
+default int f0/3/1
+int f0/3/1
+switchport access vlan 103
+no shut
+int vl 103
+no shut
+ip addr 10.10.3.1 255.255.255.0
+ip router isis
+default int f0/3/2
+int f0/3/2
+switchport access vlan 102
+no shut
+int vl 102
+no shut
+ip addr 10.10.2.1 255.255.255.0
+ip router isis
+int l 8
+shut
+int l 123
+shut
+router isis
+is-type level-2
+net 01.ffff.ffff.ffff.00
+exit
+int lo0
+ip address 10.10.0.254 255.255.255.255
+ip router isis
+do wr
+
+r1...
+
+en
+term length 40
+conf t
+vtp mode transparent
+alias exec ib sh ip int br
+int g0/1
+shut
+default int g0/0
+int g0/0
+no shut
+default int f0/0/0
+int f0/0/0
+no shut
+ip addr 10.10.1.2 255.255.255.0
+ip router isis
+router isis
+is-type level-2
+net 01.1111.1111.1111.00
+int lo0
+ip address 10.10.0.1 255.255.255.255
+ip router isis
+int lo1
+ip addr 192.168.1.1 255.255.255.255
+default int g0/0
+int g0/0
+no shut
+ip addre 192.168.10.1 255.255.255.0
+router ospf 1
+router-id 192.168.1.1
+network 192.168.1.1 0.0.0.0 area 0
+network 192.168.10.1 0.0.0.0 area 0
+do wr
+
+dsw1....
+
+en
+term length 40
+conf t
+int lo0
+ip addr 192.168.1.2 255.255.255.255
+vlan 10
+default interface GigabitEthernet1/0/21
+interface GigabitEthernet1/0/21
+no shut
+no shut
+ switchport trunk allowed vlan 10
+ sw tr en dot1q
+ switchport mode trunk
+int vl 10
+no shut
+ip addr 192.168.11.1 255.255.255.0
+ip routing
+vtp mode transparent
+no vlan 2-1001
+no vlan 1006-4094
+alias exec ib sh ip int br
+int vlan 1
+shut
+int f0
+shut
+default int g1/0/13
+interface GigabitEthernet1/0/13
+ no switchport
+ip addr 192.168.10.2 255.255.255.0
+no shut
+int g1/0/14
+shut
+int range g1/0/17 - 20
+shut
+int range g1/0/22 - 24
+shut
+router ospf 1
+router-id 192.168.1.2
+network 0.0.0.0 255.255.255.255 area 0
+passive f0
+exit
+vlan 10
+do wr
+
+asw1...
+
+en
+conf t
+alias exec ib sh ip int br
+int vl 1
+shut
+int f0
+shut
+ip default-gateway 192.168.11.1
+vlan 10
+default int g1/0/45
+interface GigabitEthernet1/0/45
+no shut
+ switchport trunk allowed vlan 10
+ switchport mode trunk
+int vl 10
+no shut
+ip addr 192.168.11.2 255.255.255.0
+no shut
+do wr
+
+r2...
+
+en
+term length 40
+conf t
+vtp mode transparent
+alias exec ib sh ip int br
+int g0/0
+shut
+int f0/1/0
+shut
+default int g0/1
+int g0/1
+no shut
+default int f0/0/0
+int f0/0/0
+no shut
+ip addr 10.10.3.2 255.255.255.0
+ip router isis
+router isis
+is-type level-2
+net 01.3333.3333.3333.00
+int lo0
+ip address 10.10.0.3 255.255.255.255
+ip router isis
+int lo1
+ip addr 192.168.3.1 255.255.255.255
+default int g0/1
+int g0/1
+no shut
+ip addre 192.168.30.1 255.255.255.0
+router ospf 1
+router-id 192.168.3.1
+network 192.168.3.1 0.0.0.0 area 0
+network 192.168.30.1 0.0.0.0 area 0
+do wr
+
+dsw2....
+
+en
+term length 40
+conf t
+int lo0
+ip addr 192.168.3.2 255.255.255.255
+vlan 10
+default interface GigabitEthernet1/0/24
+interface GigabitEthernet1/0/24
+no shut
+no shut
+ switchport trunk allowed vlan 10
+ sw tr en dot1q
+ switchport mode trunk
+int vl 10
+no shut
+ip addr 192.168.31.1 255.255.255.0
+ip routing
+vtp mode transparent
+no vlan 2-1001
+no vlan 1006-4094
+alias exec ib sh ip int br
+int vlan 1
+shut
+int f0
+shut
+default int g1/0/14
+interface GigabitEthernet1/0/14
+ no switchport
+ip addr 192.168.30.2 255.255.255.0
+no shut
+int g1/0/13
+shut
+int range g1/0/17 - 23
+shut
+router ospf 1
+router-id 192.168.3.2
+network 0.0.0.0 255.255.255.255 area 0
+passive f0
+exit
+vlan 10
+do wr
+
+asw2...
+
+en
+conf t
+alias exec ib sh ip int br
+int vl 1
+shut
+int f0
+shut
+ip default-gateway 192.168.31.1
+vlan 10
+default int g1/0/48
+interface GigabitEthernet1/0/48
+ switchport trunk allowed vlan 10
+ switchport mode trunk
+int vl 10
+ip addr 192.168.31.2 255.255.255.0
+no shut
+do wr
+
+branch-a...
+
+en
+term length 40
+conf t
+vtp mode transparent
+alias exec ib sh ip int br
+default int g0/1
+int g0/1
+no shut
+ip addr 10.10.2.2 255.255.255.0
+ip router isis
+router isis
+is-type level-2
+net 01.2222.2222.2222.00
+int lo0
+ip address 10.10.0.2 255.255.255.255
+ip router isis
+do wr
+
+verify core...
+
+isp_a... should have neighbor with all 3 sites...
+sh isis ne
+
+site should see isis learned routes...
+
+sh ip ro isis
+
+ping a few...
+ping 10.10.0.2
+ping 10.10.0.3
+
+------------------------------------------
+dmvpn - dynamic multipoint virtual private network
+
+branch_a...
+
+(ospf prep)
+
+en
+term length 40
+conf t
+int lo1
+ip addr 192.168.2.1 255.255.255.255
+int lo2
+ip addr 192.168.20.1 255.255.255.0
+router ospf 1
+router-id 192.168.2.1
+network 192.168.2.1 0.0.0.0 area 0
+network 192.168.20.1 0.0.0.0 area 0
+do wr
+
+------ DMVPN
+
+branch_a (main site)
+this is the dmvpn/nfrp server
+
+en
+conf t
+interface Tunnel0
+ ip address 192.168.0.1 255.255.255.0
+ no ip redirects
+ ip ospf network broadcast
+ ip ospf priority 2
+ ip nhrp authentication cisco123
+ ip nhrp map multicast dynamic
+ ip nhrp network-id 1
+ tunnel source 10.10.2.2
+ tunnel mode gre multipoint
+router ospf 1
+ network 192.168.0.1 0.0.0.0 area 0
+do wr
+
+r1...
+
+en
+conf t
+interface Tunnel0
+ ip address 192.168.0.2 255.255.255.0
+ no ip redirects
+ ip ospf network broadcast
+ ip nhrp authentication cisco123
+ ip nhrp map multicast dynamic
+ ip nhrp map 192.168.0.1 10.10.2.2
+ ip nhrp map multicast 10.10.2.2
+ ip nhrp map multicast 10.10.3.2
+ ip nhrp network-id 1
+ ip nhrp nhs 192.168.0.1
+ tunnel source f0/0/0
+ tunnel mode gre multipoint
+router ospf 1
+ network 192.168.0.2 0.0.0.0 area 0
+do wr
+
+r2... same as r1 except tunnel ip 
+
+en
+conf t
+interface Tunnel0
+ ip address 192.168.0.3 255.255.255.0
+ no ip redirects
+ ip ospf network broadcast
+ ip nhrp authentication cisco123
+ ip nhrp map multicast dynamic
+ ip nhrp map 192.168.0.1 10.10.2.2
+ ip nhrp map multicast 10.10.2.2
+ ip nhrp map multicast 10.10.1.2
+ ip nhrp network-id 1
+ ip nhrp nhs 192.168.0.1
+ tunnel source f0/0/0
+ tunnel mode gre multipoint
+router ospf 1
+ network 192.168.0.3 0.0.0.0 area 0
+do wr
+
+hey cool find... since we only see ospf from r1 and r2 to branch_a i was thinking that if ospf went down at branch_a that this could adverlsey affect the dynamic tunnel frmo site 1 to site 2, and it did, i tested and removed the tunnel int frmo ospf in branch_a and site 1 and 2 could still ping each other for a while until ospf timed out and routes were lost, so then check it out... this caused ospf to come up from site one to site to over the dyn tunnel...
+
+..also wanted to nail up router-id on all routers so did that on branch_a and r1, r2, dsw1, dsw2 to their NON-ISIS loopbacks...
+
+.... BUT, after while ospf goes down, 
+verify...
+
+sh dmvpn
+sh dmvpn detail
+sh interf tun 0
+ 

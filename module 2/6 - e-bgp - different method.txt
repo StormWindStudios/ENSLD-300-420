@@ -1,0 +1,57 @@
+(must know which routes you have)
+
+sh ip ro 1.0.0.0 255.0.0.0 longer-prefixes
+
+***OR****
+
+network command with EXACT PREFIX AND MASK AS IS IN THE RIB
+
+***OR***
+
+network 1.0.0.0 mask 255.255.255.0
+
+...but if you want larger aggregate...
+
+*** ADD ON agg to send larger prefix ***
+
+aggregate-address 1.0.0.0 255.0.0.0 summary-only
+
+*** OR ***
+
+redis IGP and use prefix list with aggregate....
+
+router bgp 64512
+ redistribute ospf 1
+
+...see how much we sent and what was received that we did not want....
+...we don't want all that sent
+
+...on r1
+
+sh ip bgp neighb 10.10.2.1 ad
+
+....on isp_a 
+
+sh ip bgp neigh 10.10.2.2 routes
+
+....fix and remove all those extra advertisements...
+
+conf t
+ip prefix-list my-prefixlist-out seq 1 permit 1.0.0.0/8
+ip prefix-list my-prefixlist-out seq 100 deny 0.0.0.0/0 le 32
+
+router bgp 64512
+ neighbor 10.10.2.1 prefix-list my-prefixlist-out out
+
+do sh ip prefix-list de
+
+do cle ip bgp 10.10.2.1
+
+do sh ip prefix-list de
+
+...nothing....
+...because now it's only allowing /8...
+
+aggregate-address 1.0.0.0 255.0.0.0 summary-only
+
+...now /8 ! ...

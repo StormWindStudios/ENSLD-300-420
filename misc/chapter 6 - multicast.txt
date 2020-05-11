@@ -1,0 +1,812 @@
+PUT IN TEACH NOTES
+
+https://www.cisco.com/c/dam/en/us/support/docs/ip/ip-multicast/ipmlt_wp.pdf
+
+default...
+
+c-20#sh ip multicast
+        Multicast Routing: disabled
+        Multicast Multipath: disabled
+        Multicast Route limit: No limit
+        Multicast Triggered RPF check: enabled
+        Multicast Fallback group mode: Sparse
+
+
+testing from a direct connected router at bb-2 as a mcast sender...
+
+bb-2#debug ip packet
+IP packet debugging is on
+
+*** very interesting, mcast sent out all ports with active ip config on it!!
+
+bb-2#ib | in up
+FastEthernet0/0            11.0.1.9        YES manual up                    up
+FastEthernet0/1            11.0.1.6        YES manual up                    up
+FastEthernet1/0            unassigned      YES unset  up                    up
+FastEthernet2/0            unassigned      YES unset  up                    up
+Loopback0                  11.0.0.2        YES manual up                    up
+
+
+bb-2#ping 239.0.239.239
+
+Type escape sequence to abort.
+Sending 1, 100-byte ICMP Echos to 239.0.239.239, timeout is 2 seconds:
+
+*Mar 15 18:58:51.691: IP: s=11.0.1.9 (local), d=239.0.239.239 (FastEthernet0/0), len 100, sending broad/multicast
+*Mar 15 18:58:51.691: IP: s=11.0.1.6 (local), d=239.0.239.239 (FastEthernet0/1), len 100, sending broad/multicast
+*Mar 15 18:58:51.691: IP: s=11.0.0.2 (local), d=239.0.239.239 (Loopback0), len 100, sending broad/multicast
+*Mar 15 18:58:51.691: IP: s=11.0.0.2 (Loopback0), d=239.0.239.239, len 100, unroutable.
+
+1st group...
+
+ping 224.0.0.0
+ping 225.0.0.0
+ping 226.0.0.0
+ping 227.0.0.0
+ping 228.0.0.0
+ping 229.0.0.0
+ping 230.0.0.0
+ping 231.0.0.0
+ping 232.0.0.0
+ping 233.0.0.0
+ping 234.0.0.0
+ping 235.0.0.0
+ping 236.0.0.0
+ping 237.0.0.0
+ping 238.0.0.0
+ping 239.0.0.0
+
+ping 224.128.0.0
+ping 225.128.0.0
+ping 226.128.0.0
+ping 227.128.0.0
+ping 228.128.0.0
+ping 229.128.0.0
+ping 230.128.0.0
+ping 231.128.0.0
+ping 232.128.0.0
+ping 233.128.0.0
+ping 234.128.0.0
+ping 235.128.0.0
+ping 236.128.0.0
+ping 237.128.0.0
+ping 238.128.0.0
+ping 239.128.0.0
+
+2nd group...
+
+ping 224.0.0.1
+ping 225.0.0.1
+ping 226.0.0.1
+ping 227.0.0.1
+ping 228.0.0.1
+ping 229.0.0.1
+ping 230.0.0.1
+ping 231.0.0.1
+ping 232.0.0.1
+ping 233.0.0.1
+ping 234.0.0.1
+ping 235.0.0.1
+ping 236.0.0.1
+ping 237.0.0.1
+ping 238.0.0.1
+ping 239.0.0.1
+
+ping 224.128.0.1
+ping 225.128.0.1
+ping 226.128.0.1
+ping 227.128.0.1
+ping 228.128.0.1
+ping 229.128.0.1
+ping 230.128.0.1
+ping 231.128.0.1
+ping 232.128.0.1
+ping 233.128.0.1
+ping 234.128.0.1
+ping 235.128.0.1
+ping 236.128.0.1
+ping 237.128.0.1
+ping 238.128.0.1
+ping 239.128.0.1
+
+
+
+
+------------------------------
+oh wait, this 1st, 2nd grouping thing of course is based on my 3rd and 4th octets of 239.239
+
+1st group over 32 overlapping 
+
+ping 224.0.239.239
+ping 225.0.239.239
+ping 226.0.239.239
+ping 227.0.239.239
+ping 228.0.239.239
+ping 229.0.239.239
+ping 230.0.239.239
+ping 231.0.239.239
+ping 232.0.239.239
+ping 233.0.239.239
+ping 234.0.239.239
+ping 235.0.239.239
+ping 236.0.239.239
+ping 237.0.239.239
+ping 238.0.239.239
+ping 239.0.239.239
+
+ping 224.128.239.239
+ping 225.128.239.239
+ping 226.128.239.239
+ping 227.128.239.239
+ping 228.128.239.239
+ping 229.128.239.239
+ping 230.128.239.239
+ping 231.128.239.239
+ping 232.128.239.239
+ping 233.128.239.239
+ping 234.128.239.239
+ping 235.128.239.239
+ping 236.128.239.239
+ping 237.128.239.239
+ping 238.128.239.239
+ping 239.128.239.239
+
+----------------------------
+2nd group over 32 overlapping 
+
+ping 224.0.239.239
+ping 225.0.239.239
+ping 226.0.239.239
+ping 227.0.239.239
+ping 228.0.239.239
+ping 229.0.239.239
+ping 230.0.239.239
+ping 231.0.239.239
+ping 232.0.239.239
+ping 233.0.239.239
+ping 234.0.239.239
+ping 235.0.239.239
+ping 236.0.239.239
+ping 237.0.239.239
+ping 238.0.239.239
+ping 239.0.239.239
+
+ping 224.128.239.239
+ping 225.128.239.239
+ping 226.128.239.239
+ping 227.128.239.239
+ping 228.128.239.239
+ping 229.128.239.239
+ping 230.128.239.239
+ping 231.128.239.239
+ping 232.128.239.239
+ping 233.128.239.239
+ping 234.128.239.239
+ping 235.128.239.239
+ping 236.128.239.239
+ping 237.128.239.239
+ping 238.128.239.239
+ping 239.128.239.239
+
+
+c-20(config)#ip multicast-routing
+c-20(config)#^Z
+c-20#sh ip mroute
+*Mar 15 19:15:52.967: %SYS-5-CONFIG_I: Configured from console by croute
+IP Multicast Routing Table
+Flags: D - Dense, S - Sparse, B - Bidir Group, s - SSM Group, C - Connected,
+       L - Local, P - Pruned, R - RP-bit set, F - Register flag,
+       T - SPT-bit set, J - Join SPT, M - MSDP created entry,
+       X - Proxy Join Timer Running, A - Candidate for MSDP Advertisement,
+       U - URD, I - Received Source Specific Host Report,
+       Z - Multicast Tunnel, z - MDT-data group sender,
+       Y - Joined MDT-data group, y - Sending to MDT-data group
+Outgoing interface flags: H - Hardware switched, A - Assert winner
+ Timers: Uptime/Expires
+ Interface state: Interface, Next-Hop or VCD, State/Mode
+
+c-20#sh ip multicast
+        Multicast Routing: enabled
+        Multicast Multipath: disabled
+        Multicast Route limit: No limit
+        Multicast Triggered RPF check: enabled
+        Multicast Fallback group mode: Sparse
+c-20#
+
+
+PIM-SM handles most network situations...however PIM-DM is for highly populated (hence dense, densly populated) networks, where there are a large amount of mcast stations
+
+PIM-SM for more sparesly populated mcast networks
+
+PIMv1 and PIMv2 - v2 has interop and translation between v1 and v2
+
+*** CISCO RECOMMENDS PIM-SM with Auto-RP... so PIMv2 with BSR 
+
+pimv2 uses bsr to discover and announce RP-set info FOR EACH GROUP in a pim domain
+
+PIMv1 with AutoRP = PIMv2 BSR
+
+but...
+
+AutoRP = Cisco Proprietary
+PIMv2  = IETF standard
+
+recommendation is PIMv2 since BSR interops with Cisco Auto-RP
+
+
+after globally configing ip mcast routing and ip pim dense-mode i see one group learned already with NO traffic...
+
+(*, 224.0.1.40), 00:02:12/00:02:25, RP 0.0.0.0, flags: DCL
+  Incoming interface: Null, RPF nbr 0.0.0.0
+  Outgoing interface list:
+    FastEthernet0/1, Forward/Dense, 00:02:13/00:00:00
+
+
+then when i send traffic from a connected router, i then see on this mcast router 2 more groups...
+BOTH A SHARED TREE AND A SOURCE TREE
+
+c-20#sh ip mroute
+...
+
+(*, 239.234.234.234), 00:01:05/stopped, RP 0.0.0.0, flags: DP
+  Incoming interface: Null, RPF nbr 0.0.0.0
+  Outgoing interface list: Null
+
+(11.0.1.9, 239.234.234.234), 00:01:05/00:01:54, flags: PT
+  Incoming interface: FastEthernet0/1, RPF nbr 0.0.0.0
+  Outgoing interface list: Null
+
+
+c-20#sh ip pim interface
+
+Address          Interface                Ver/   Nbr    Query  DR     DR
+                                          Mode   Count  Intvl  Prior
+11.0.1.10        FastEthernet0/1          v2/D   0      30     1      11.0.1.10
+c-20#sh ip pim interface dbr
+c-20#sh ip pim interface br
+c-20#sh ip pim interface
+
+Address          Interface                Ver/   Nbr    Query  DR     DR
+                                          Mode   Count  Intvl  Prior
+11.0.1.10        FastEthernet0/1          v2/D   0      30     1      11.0.1.10
+c-20#conf t
+Enter configuration commands, one per line.  End with CNTL/Z.
+c-20(config)#int f0/1
+c-20(config-if)#ippim
+c-20(config-if)#ip pim
+c-20(config-if)#ip pim ver
+c-20(config-if)#ip pim version ?
+  1  version 1
+
+c-20(config-if)#ip pim vers
+c-20(config-if)#ip pim version 1
+c-20(config-if)#do sh ip pim in
+% Ambiguous command:  "do sh ip pim in"
+c-20(config-if)#do sh ip pim in
+
+Address          Interface                Ver/   Nbr    Query  DR     DR
+                                          Mode   Count  Intvl  Prior
+11.0.1.10        FastEthernet0/1          v1/D   0      30     1      11.0.1.10
+c-20(config-if)#no ip pim version 1
+c-20(config-if)#do sh run int f0/1
+Building configuration...
+
+Current configuration : 143 bytes
+!
+interface FastEthernet0/1
+ ip address 11.0.1.10 255.255.255.252
+ ip pim dense-mode
+ speed 100
+ full-duplex
+ no keepalive
+ no cdp enable
+end
+
+c-20(config-if)#do sh ip pim in
+
+Address          Interface                Ver/   Nbr    Query  DR     DR
+                                          Mode   Count  Intvl  Prior
+11.0.1.10        FastEthernet0/1          v2/D   0      30     1      11.0.1.10
+c-20(config-if)#^Z
+c-20#wr
+*Mar 15 19:41:40.427: %SYS-5-CONFIG_I: Configured from console by console
+Building configuration...
+[OK]
+c-20#
+
+
+
+------------------------------------------------------------
+
+ok time to config entire network....
+
+*** PIM DENSE MODE
+
+en
+conf t
+line con 0
+exec-timeout 240
+do wr
+
+ip multicast-routing
+
+int f0/0
+ip pim dense-mode
+no keepalive
+
+int f0/1
+ip pim dense-mode
+no keepalive
+
+int f1/0
+ip pim dense-mode
+no keepalive
+
+int f2/0
+ip pim dense-mode
+no keepalive
+
+exit
+exit
+
+
+mcase rcvr in IOS...
+conf t
+line con 0
+exec-timeout 240
+int vlan 1
+ip address 3.3.3.10 255.255.255.0
+ip igmp join-group 239.128.239.239
+
+
+verify...
+
+sh ip mroute
+sh ip igmp groups
+sh ip pim int
+sh ip pim nei
+
+
+----------------------------------------------------------
+
+*** PIM SPARSE MODE
+
+en
+conf t
+
+int f0/0
+no ip pim dense-mode
+ip pim sparse-mode
+
+int f0/1
+no ip pim dense-mode
+ip pim sparse-mode
+
+int f1/0
+no ip pim dense-mode
+ip pim sparse-mode
+
+int f2/0
+no ip pim dense-mode
+ip pim sparse-mode
+
+exit
+exit
+
+*** router c-2 RP, all routers need same rp config ... i didn't have to enable pim on the loopback...
+
+conf t
+ip pim rp-address 3.0.0.2
+exit
+
+verify...
+
+sh ip mroute
+...shows S J flags now...
+WHAT IS *, 224.0.1.40 and explain that RP changes during static RP config, and that it stays 0.0.0.0 when you are the RP
+
+sh ip igmp groups
+
+sh ip pim int
+sh ip pim nei
+sh ip pim rp
+sh ip rpf
+
+
+----------------------------------------------------------
+
+*** PIM SPARSE MODE w/Auto-RP
+
+remove previous static rp...
+conf t
+no ip pim rp-address 3.0.0.2
+exit
+
+rp... 
+en
+conf t
+interface loopback0
+ip pim sparse-dense-mode
+exit
+ip pim send-rp-announce loopback0 scope 100
+ip pim send-rp-discovery scope 100
+
+removing auto-rp...
+
+en
+conf t
+no ip domain-lookup
+interface loopback0
+no ip pim sparse-dense-mode
+exit
+no ip pim send-rp-announce loopback0 scope 100
+no ip pim send-rp-discovery scope 100
+
+verify autorp....
+
+i think some dns lookup tries, and sometimes this slows this command.... no ip domain-lookup or set a dns)
+
+sh ip pim autorp
+sh ip pim rp mapping
+
+
+all other routers...
+sh run | in pim
+
+conf t
+int f0/0
+no ip pim sparse-mode
+ip pim sparse-dense-mode
+
+int f0/1
+no ip pim sparse-mode
+ip pim sparse-dense-mode
+
+int f1/0
+no ip pim sparse-mode
+ip pim sparse-dense-mode
+
+int f2/0
+no ip pim sparse-mode
+ip pim sparse-dense-mode
+
+
+verify...
+
+sh ip pim rp mapping
+sh ip pim autorp
+sh run | in igmp|pim|multic
+
+....wow, i've got to read about auto-rp and how it requires sparse-dense mode...
+
+debug ip pim
+debug ip igmp
+u all
+
+....going back to pure spares-mode...
+
+conf t
+int f0/0
+no ip pim sparse-dense-mode
+ip pim sparse-mode
+
+int f0/1
+no ip pim sparse-dense-mode
+ip pim sparse-mode
+
+int f1/0
+no ip pim sparse-dense-mode
+ip pim sparse-mode
+
+int f2/0
+no ip pim sparse-dense-mode
+ip pim sparse-mode
+exit
+exit
+wr
+
+
+
+conf t
+no ip pim rp-address 3.0.0.2
+no ip pim rp-address 3.0.0.3
+exit
+wr
+sh run | in igmp|pim|multic
+sh ip mroute
+
+debug ip pim
+debug ip igmp
+
+conf t
+no ip multicast-routing
+ip multicast-routing
+exit
+sho ip mroute
+
+
+
+
+----------------------------------------------------------
+
+*** PIM SSM
+
+https://www.cisco.com/c/en/us/td/docs/switches/lan/catalyst3850/software/release/16-1/configuration_guide/b_161_consolidated_3850_cg/b_161_consolidated_3850_cg_chapter_011110.pdf
+
+wow, removed all RP config, and simply added this to last hop router where listeners are...
+
+c-7 endpoint rcvr emulator...
+conf t
+int vlan 1
+ip igmp version 3
+
+last hop router...
+
+conf t
+ip pim ssm default
+
+... the above uses the default 232/8 range for ssm
+or.... 
+access-list 1 permit 239.0.0.0 0.255.255.255
+ip pim ssm range 1
+
+int f0/0
+ip igmp version 3
+
+
+c-4(config)#ip pim ssm ?
+  default  Use 232/8 group range for SSM
+  range    ACL for group range to be used for SSM
+
+
+
+removing it all...
+
+c-7... i've seen if i don't remove the joined group first, the removal of igmp v3 then the group won't allow group to be removed and mcast traffic still arrives, since branches probably weren't pruned...
+
+no ip igmp join-group 239.128.239.239 source 11.0.1.9
+no ip igmp version 3
+do wr
+
+c-4...
+int f0/0
+no ip igmp version 3
+exit
+no ip pim ssm range 1
+no access-list 1 permit 239.0.0.0 0.255.255.255
+
+
+verify rp....
+
+rp shows...
+
+c-2#sh ip pim rp
+Group: 239.128.239.239, RP: 3.0.0.2, next RP-reachable in 00:00:41
+Group: 224.0.1.40, RP: 3.0.0.2, next RP-reachable in 00:00:41
+
+
+all others show...
+
+c-4#sh ip pim rp
+Group: 239.128.239.239, RP: 3.0.0.2, uptime 10:27:01, expires never
+Group: 224.0.1.40, RP: 3.0.0.2, uptime 10:27:31, expires never
+
+
+----------------------------------------------------------
+going back to pim sm for testing msdp...
+
+*** PIM SPARSE MODE across 2 domains or 3 for msdp testing...
+
+AS 64513 - RP a-4 - 1.0.0.4
+AS 64515 - RP c-2 - 3.0.0.2
+
+a-4...
+conf t
+ip msdp peer 3.0.0.2 connect-source lo0 remote-as 64515
+do wr
+
+c-2...
+conf t
+ip msdp peer 1.0.0.4 connect-source lo0 remote-as 64513
+do wr
+
+verify...
+
+sh ip msdp ?
+
+
+sh ip mroute
+sh ip igmp groups
+sh ip pim int
+sh ip pim nei
+sh ip pim rp
+sh ip rpf
+
+
+
+service timestamps debug datetime msec
+service timestamps log datetime msec
+no service password-encryption
+!
+hostname c-30
+!
+!
+no ip domain lookup
+ip multicast-routing
+!
+!
+!
+interface Loopback0
+ ip address 3.0.0.30 255.255.255.255
+!
+interface FastEthernet0/0
+ ip address 3.0.2.10 255.255.255.252
+ ip pim sparse-mode
+ speed 100
+ full-duplex
+ no keepalive
+!
+interface FastEthernet0/1
+ ip address 3.0.2.14 255.255.255.252
+ ip pim sparse-mode
+ speed 100
+ full-duplex
+ no keepalive
+!
+interface FastEthernet1/0
+ no ip address
+ ip pim sparse-mode
+ shutdown
+ duplex auto
+ speed auto
+ no keepalive
+!
+interface FastEthernet2/0
+ no ip address
+ ip pim sparse-mode
+ shutdown
+ duplex auto
+ speed auto
+ no keepalive
+!
+router ospf 1
+ router-id 3.0.0.30
+ log-adjacency-changes
+ network 0.0.0.0 255.255.255.255 area 1
+
+ip pim rp-address 3.0.0.2
+!
+alias exec ib sh ip int br
+!
+line con 0
+ exec-timeout 2880 0
+
+
+...others...
+
+
+interface FastEthernet1/0
+no shut
+ ip address 3.0.2.9 255.255.255.252
+ ip pim sparse-mode
+ speed 100
+ full-duplex
+ no keepalive
+
+interface FastEthernet1/0
+no shut
+ ip address 3.0.2.13 255.255.255.252
+ ip pim sparse-mode
+ speed 100
+ full-duplex
+ no keepalive
+
+
+----- -
+
+AS 64513 mcast...
+
+a1 - a4 routers
+
+
+en
+conf t
+
+ip pim rp-address 1.0.0.4
+alias exec ib sh ip int br
+line con 0
+ exec-timeout 2880 0
+exit
+
+ip multicast-routing
+
+interface FastEthernet0/0
+ ip pim sparse-mode
+ no shutdown
+ speed 100
+ full-duplex
+ no keepalive
+
+interface FastEthernet0/1
+ ip pim sparse-mode
+ no shutdown
+ speed 100
+ full-duplex
+ no keepalive
+
+interface FastEthernet1/0
+ ip pim sparse-mode
+ no shutdown
+ speed 100
+ full-duplex
+ no keepalive
+ 
+interface FastEthernet2/0
+ ip pim sparse-mode
+ no shutdown
+ speed 100
+ full-duplex
+ no keepalive
+
+exit
+exit
+wr
+
+sh ip mroute
+	
+
+
+
+
+---------------------------------------
+get bgp between 2 as's for msdp reach...
+
+a-1 and c-10
+
+MAYBE.... 
+int f1/0
+ ip pim sparse-mode
+end maybe.....
+
+en
+conf t
+alias exec ib sh ip int br
+line con 0
+ exec-timeout 2880 0
+exit
+
+ip multicast-routing
+
+interface FastEthernet1/0
+ no shutdown
+ speed 100
+ full-duplex
+ no keepalive
+ip addr 1.0.1.18 255.255.255.252
+
+
+exit
+exit
+wr
+
+c-10...
+conf t
+router bgp 64515
+ neighbor 1.0.1.17 remote-as 64513
+address-family ipv4
+aggregate-address 3.0.0.0 255.0.0.0 summary-only
+do wr
+
+a-1...
+conf t
+router bgp 64513
+ neighbor 1.0.1.18 remote-as 64515
+address-family ipv4
+aggregate-address 1.0.0.0 255.0.0.0 summary-only
+
+do wr
+
+
+conf t
+router bgp 123
+

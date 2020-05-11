@@ -1,0 +1,23 @@
+we want to make 1.0.2.0/24 less attractive here by making AS path list longer...
+
+access-list 1 permit 1.0.2.0 0.0.0.255
+
+do sh ip access-l
+
+route-map mod-attrbs permit 10
+ match ip address 1
+ set as-path prepend 64512 64512
+route-map mod-attrbs permit 100
+
+router bgp 64512
+ neighbor 10.10.2.1 route-map mod-attrbs out
+
+do sh ip access-l
+
+do wr
+
+verify...
+
+ISP_A...
+
+sh ip bgp neigh 10.10.2.2 rou

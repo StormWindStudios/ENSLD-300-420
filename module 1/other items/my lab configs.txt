@@ -1,0 +1,614 @@
+
+
+---- do translation...
+...first remove tunnel and ospfv3
+
+conf t
+no ipv6 router ospf 1
+no int tun 0
+
+...we forgot to remove this little eigrp command
+conf t
+interface Vlan10
+no ipv6 eigrp 1
+
+....ok so i went ahead and used previous ipv6 eigrp command for branch a, r2, dsw2, asw2, and broke v6 and v6 eigrp between branch a and isp a (passive int's) and then left ipv4 eigrp on isp a, r1, dsw1 and asw1....
+
+branch a router will be the nat64 xlator....
+branch 1....
+conf t
+int g0/0
+ipv6 addr 2626:2626:1::1/96
+nat64 enable
+int g0/1
+nat64 enable
+exit
+
+try this...
+nat64 prefix stateful 2626:2626::1/96
+nat64 v6v4 static 2626:2626:1::FFFE 10.10.3.1
+
+
+...not this...
+nat64 prefix stateful 3001::/96
+nat64 v6v4 static 2001::A00:A 10.0.0.10
+
+wow, look what happened...
+
+BranchA(config)#
+BranchA(config)#
+*Apr  8 04:27:41.864: %LINEPROTO-5-UPDOWN: Line protocol on Interface NVI1, changed state to up
+*Apr  8 04:27:41.868: %LINEPROTO-5-UPDOWN: Line protocol on Interface NVI1, changed state to up
+*Apr  8 04:27:41.876: %LINEPROTO-5-UPDOWN: Line protocol on Interface NVI0, changed state to up
+
+BranchA(config)#do sh nat64 translations
+Proto   Original IPv4           Translated IPv4
+        Translated IPv6         Original IPv6
+--------------------------------------------------------
+---     ---                     ---
+        10.0.0.10               2001::A00:A
+
+Total number of translations: 1
+
+
+try this...
+
+nat64 prefix stateful 3001::/96
+nat64 v6v4 static 2626:2626:2::2 10.0.0.10
+
+
+hey! , then i went to ISP A and pointed a static to 10.0.0.10 via it's next hop ip of branch A via vlan 11....
+
+on ISP A.... 
+ip route 10.0.0.10 255.255.255.255 10.10.3.1
+
+
+
+BranchA#sh nat64 tr
+Proto   Original IPv4           Translated IPv4
+        Translated IPv6         Original IPv6
+--------------------------------------------------------
+icmp    10.10.3.2:1             [3001::A0A:302]:1
+        10.0.0.10:1             [2626:2626:2::2]:1
+---     ---                     ---
+        10.0.0.10               2626:2626:2::2
+
+Total number of translations: 2
+
+BranchA#sh nat64 prefix stateful interfaces
+Interface Stateful Prefixes:
+
+Interface        NAT64 enabled   Global  prefix
+GigabitEthernet0/0       TRUE            TRUE    64:FF9B::/96
+GigabitEthernet0/1       TRUE            TRUE    64:FF9B::/96
+GigabitEthernet0/0       TRUE            TRUE    3001::/96
+GigabitEthernet0/1       TRUE            TRUE    3001::/96
+BranchA#sh nat64 prefix stateful global
+Global Stateful Prefix:
+
+64:FF9B::/96
+  usecount: 0, config-id: 1
+
+3001::/96
+  usecount: 2, config-id: 2
+
+IFs Using Global Prefix
+
+
+ GigabitEthernet0/0
+
+ GigabitEthernet0/1
+BranchA#
+
+debug nat64 database detail
+debug nat64 database error
+debug nat64 database event
+
+debug nat64 packet detail
+debug nat64 packet error
+debug nat64 packet event
+
+debug nat64 translation detail
+debug nat64 translation error
+debug nat64 translation event
+
+
+here's where i was stumped...
+
+R2#deb ipv6 packet
+  IPv6 unicast packet debugging is on
+R2#
+*Apr  8 05:27:37.551: IPv6-Fwd: Destination lookup for 2626:2626::5 : Local, i/f=Loopback0, nexthop=2626:2626::5
+*Apr  8 05:27:37.551: IPV6: source 3001::A0A:302 (FastEthernet0/1/0)
+*Apr  8 05:27:37.551:       dest 2626:2626::5 (Loopback0)
+*Apr  8 05:27:37.551:       traffic class 0, flow 0x0, len 120+14, prot 58, hops 254, forward to ulp
+*Apr  8 05:27:37.551: IPv6-Fwd: Destination lookup for 3001::A0A:302 : i/f=FastEthernet0/1/0, nexthop=3001::A0A:302
+*Apr  8 05:27:37.551: IPV6: source 2626:2626::5
+R2# (local)
+*Apr  8 05:27:37.551:       dest 3001::A0A:302 (FastEthernet0/1/0)
+*Apr  8 05:27:37.551:       traffic class 0, flow 0x0, len 120+0, prot 58, hops 64, originating
+*Apr  8 05:27:37.551: IPv6-Fwd: Encapsulation postponed, performing resolution
+*Apr  8 05:27:37.555: IPV6: source FE80::207:7DFF:FE5E:FDEB (local)
+*Apr  8 05:27:37.555:       dest FF02::1:FF0A:302 (FastEthernet0/1/0)
+*Apr  8 05:27:37.555:       traffic class 224, flow 0x0, len 72+0, prot 58, hops 255, originating
+*Apr  8 05:27:37.
+R2#555: IPv6-Fwd: Sending on FastEthernet0/1/0
+*Apr  8 05:27:37.695: IPv6-Fwd: SAS on intf GigabitEthernet0/1 picked source FE80::76A2:E6FF:FED1:6859 for FF02::A
+*Apr  8 05:27:37.695: IPV6: source FE80::76A2:E6FF:FED1:6859 (local)
+*Apr  8 05:27:37.695:       dest FF02::A (GigabitEthernet0/1)
+*Apr  8 05:27:37.695:       traffic class 224, flow 0x0, len 80+0, prot 88, hops 1, originating
+*Apr  8 05:27:37.695: IPv6-Fwd: Sending on GigabitEthernet0/1
+*Apr  8 05:27:37.707: IPV6: source FE80::1AE7:28FF:FEDF:B
+R2#760 (FastEthernet0/1/0)
+*Apr  8 05:27:37.707:       dest FF02::A
+*Apr  8 05:27:37.707:       traffic class 224, flow 0x0, len 80+14, prot 88, hops 1, forward to ulp
+*Apr  8 05:27:37.899: IPv6-Fwd: SAS on intf FastEthernet0/1/0 picked source FE80::207:7DFF:FE5E:FDEB for FF02::A
+*Apr  8 05:27:37.899: IPV6: source FE80::207:7DFF:FE5E:FDEB (local)
+*Apr  8 05:27:37.899:       dest FF02::A (FastEthernet0/1/0)
+*Apr  8 05:27:37.899:       traffic class 224, flow 0x0, len 80+0, prot 88, hops 1, orig
+
+again....
+
+
+R2#
+R2#
+R2#
+R2#
+R2#
+R2#
+R2#
+R2#
+R2#deb ipv6 packet detail
+  IPv6 unicast packet debugging is on
+R2#
+*Apr  8 05:41:56.183: IPv6-Fwd: SAS on intf FastEthernet0/1/0 picked source FE80::207:7DFF:FE5E:FDEB for FF02::A
+*Apr  8 05:41:56.183: IPV6: source FE80::207:7DFF:FE5E:FDEB (local)
+*Apr  8 05:41:56.183:       dest FF02::A (FastEthernet0/1/0)
+*Apr  8 05:41:56.183:       traffic class 224, flow 0x0, len 80+0, prot 88, hops 1, originating
+*Apr  8 05:41:56.183: IPv6-Fwd: Sending on FastEthernet0/1/0
+R2#
+*Apr  8 05:41:58.035: IPv6-Fwd: Destination lookup for 2626:2626::5 : Local, i/f=Loopback0, nexthop=2626:2626::5
+*Apr  8 05:41:58.035: IPV6: source 3001::A0A:302 (FastEthernet0/1/0)
+*Apr  8 05:41:58.035:       dest 2626:2626::5 (Loopback0)
+*Apr  8 05:41:58.035:       traffic class 0, flow 0x0, len 120+14, prot 58, hops 254, forward to ulp
+*Apr  8 05:41:58.035: IPv6-Fwd: Destination lookup for 3001::A0A:302 : i/f=FastEthernet0/1/0, nexthop=3001::A0A:302
+*Apr  8 05:41:58.035: IPV6: source 2626:2626::5
+R2# (local)
+*Apr  8 05:41:58.035:       dest 3001::A0A:302 (FastEthernet0/1/0)
+*Apr  8 05:41:58.035:       traffic class 0, flow 0x0, len 120+0, prot 58, hops 64, originating
+*Apr  8 05:41:58.035: IPv6-Fwd: Created tmp mtu cache entry for 2626:2626::5 3001::A0A:302 00000000
+*Apr  8 05:41:58.035: IPv6-Fwd: Encapsulation postponed, performing resolution
+*Apr  8 05:41:58.039: IPV6: source FE80::207:7DFF:FE5E:FDEB (local)
+*Apr  8 05:41:58.039:       dest FF02::1:FF0A:302 (FastEthernet0/1/0)
+*Apr  8 05:41:5
+R2#8.039:       traffic class 224, flow 0x0, len 72+0, prot 58, hops 255, originating
+*Apr  8 05:41:58.039: IPv6-Fwd: Sending on FastEthernet0/1/0
+*Apr  8 05:41:58.619: IPV6: source FE80::206:F6FF:FE54:F5C1 (GigabitEthernet0/1)
+*Apr  8 05:41:58.619:       dest FF02::A
+*Apr  8 05:41:58.619:       traffic class 224, flow 0x0, len 86+14, prot 88, hops 1, forward to ulp
+*Apr  8 05:41:59.063: IPV6: source FE80::207:7DFF:FE5E:FDEB (local)
+*Apr  8 05:41:59.063:       dest FF02::1:FF0A:302 (FastEthernet0/1/0)
+
+R2#*Apr  8 05:41:59.063:       traffic class 224, flow 0x0, len 72+0, prot 58, hops 255, originating
+*Apr  8 05:41:59.063: IPv6-Fwd: Sending on FastEthernet0/1/0
+*Apr  8 05:41:59.251: IPv6-Fwd: SAS on intf GigabitEthernet0/1 picked source FE80::76A2:E6FF:FED1:6859 for FF02::A
+*Apr  8 05:41:59.251: IPV6: source FE80::76A2:E6FF:FED1:6859 (local)
+*Apr  8 05:41:59.251:       dest FF02::A (GigabitEthernet0/1)
+*Apr  8 05:41:59.251:       traffic class 224, flow 0x0, len 80+0, prot 88, hops 1, originating
+*Apr
+R2#  8 05:41:59.251: IPv6-Fwd: Sending on GigabitEthernet0/1
+*Apr  8 05:42:00.011: IPV6: source FE80::1AE7:28FF:FEDF:B760 (FastEthernet0/1/0)
+*Apr  8 05:42:00.011:       dest FF02::A
+*Apr  8 05:42:00.011:       traffic class 224, flow 0x0, len 80+14, prot 88, hops 1, forward to ulp
+*Apr  8 05:42:00.035: IPv6-Fwd: Destination lookup for 2626:2626::5 : Local, i/f=Loopback0, nexthop=2626:2626::5
+*Apr  8 05:42:00.035: IPV6: source 3001::A0A:302 (FastEthernet0/1/0)
+*Apr  8 05:42:00.035:       dest 2626:2626:
+R2#:5 (Loopback0)
+*Apr  8 05:42:00.035:       traffic class 0, flow 0x0, len 120+14, prot 58, hops 254, forward to ulp
+*Apr  8 05:42:00.035: IPv6-Fwd: Destination lookup for 3001::A0A:302 : i/f=FastEthernet0/1/0, nexthop=3001::A0A:302
+*Apr  8 05:42:00.035: IPV6: source 2626:2626::5 (local)
+*Apr  8 05:42:00.035:       dest 3001::A0A:302 (FastEthernet0/1/0)
+*Apr  8 05:42:00.035:       traffic class 0, flow 0x0, len 120+0, prot 58, hops 64, originating
+*Apr  8 05:42:00.035: IPv6-Fwd: Encapsulation postpone
+R2#u alld, performing resolution
+*Apr  8 05:42:00.087: IPV6: source FE80::207:7DFF:FE5E:FDEB (local)
+*Apr  8 05:42:00.087:       dest FF02::1:FF0A:302 (FastEthernet0/1/0)
+*Apr  8 05:42:00.087:       traffic class 224, flow 0x0, len 72+0, prot 58, hops 255, originating
+*Apr  8 05:42:00.087: IPv6-Fwd: Sending on FastEthernet0/1/0
+*Apr  8 05:42:01.071: IPv6-Fwd: SAS on intf FastEthernet0/1/0 picked source FE80::207:7DFF:FE5E:FDEB for FF02::A
+*Apr  8 05:42:01.071: IPV6: source FE80::207:7DFF:FE5E:FDEB (local)
+*
+R2#u all
+All possible debugging has been turned off
+R2#Apr  8 05:42:01.071:       dest FF02::A (FastEthernet0/1/0)
+*Apr  8 05:42:01.071:       traffic class 224, flow 0x0, len 80+0, prot 88, hops 1, originating
+*Apr  8 05:42:01.071: IPv6-Fwd: Sending on FastEthernet0/1/0
+*Apr  8 05:42:02.035: IPv6-Fwd: Destination lookup for 2626:2626::5 : Local, i/f=Loopback0, nexthop=2626:2626::5
+*Apr  8 05:42:02.035: IPV6: source 3001::A0A:302 (FastEthernet0/1/0)
+*Apr  8 05:42:02.035:       dest 2626:2626::5 (Loopback0)
+*Apr  8 05:42:02.035:       traffic class 0, flo
+R2#w 0x0, len 120+14, prot 58, hops 254, forward to ulp
+*Apr  8 05:42:02.035: IPv6-Fwd: Destination lookup for 3001::A0A:302 : i/f=FastEthernet0/1/0, nexthop=3001::A0A:302
+*Apr  8 05:42:02.035: IPV6: source 2626:2626::5 (local)
+*Apr  8 05:42:02.035:       dest 3001::A0A:302 (FastEthernet0/1/0)
+*Apr  8 05:42:02.035:       traffic class 0, flow 0x0, len 120+0, prot 58, hops 64, originating
+*Apr  8 05:42:02.035: IPv6-Fwd: Encapsulation postponed, performing resolution
+*Apr  8 05:42:02.039: IPV6: source FE8
+R2#0::207:7DFF:FE5E:FDEB (local)
+*Apr  8 05:42:02.039:       dest FF02::1:FF0A:302 (FastEthernet0/1/0)
+*Apr  8 05:42:02.039:       traffic class 224, flow 0x0, len 72+0, prot 58, hops 255, originating
+*Apr  8 05:42:02.039: IPv6-Fwd: Sending on FastEthernet0/1/0
+*Apr  8 05:42:03.127: IPV6: source FE80::207:7DFF:FE5E:FDEB (local)
+*Apr  8 05:42:03.127:       dest FF02::1:FF0A:302 (FastEthernet0/1/0)
+*Apr  8 05:42:03.127:       traffic class 224, flow 0x0, len 72+0, prot 58, hops 255, originating
+*Apr  8 0
+R2#5:42:03.127: IPv6-Fwd: Sending on FastEthernet0/1/0
+*Apr  8 05:42:03.307: IPv6-Fwd: Destination lookup for FE80::207:7DFF:FE5E:FDEB : Local, i/f=FastEthernet0/1/0, nexthop=FE80::207:7DFF:FE5E:FDEB
+*Apr  8 05:42:03.307: IPV6: source FE80::1AE7:28FF:FEDF:B760 (FastEthernet0/1/0)
+*Apr  8 05:42:03.307:       dest FE80::207:7DFF:FE5E:FDEB (FastEthernet0/1/0)
+*Apr  8 05:42:03.307:       traffic class 224, flow 0x0, len 72+14, prot 58, hops 255, forward to ulp
+*Apr  8 05:42:03.311: IPV6: source FE80::207:7DF
+R2#F:FE5E:FDEB (local)
+*Apr  8 05:42:03.311:       dest FE80::1AE7:28FF:FEDF:B760 (FastEthernet0/1/0)
+*Apr  8 05:42:03.311:       traffic class 224, flow 0x0, len 64+0, prot 58, hops 255, originating
+*Apr  8 05:42:03.311: IPv6-Fwd: Created tmp mtu cache entry for FE80::207:7DFF:FE5E:FDEB FE80::1AE7:28FF:FEDF:B760 00000000
+*Apr  8 05:42:03.311: IPv6-Fwd: Sending on FastEthernet0/1/0
+*Apr  8 05:42:03.431: IPV6: source FE80::206:F6FF:FE54:F5C1 (GigabitEthernet0/1)
+*Apr  8 05:42:03.431:       dest FF02::A
+
+R2#*Apr  8 05:42:03.435:       traffic class 224, flow 0x0, len 86+14, prot 88, hops 1, forward to ulp
+*Apr  8 05:42:03.859: IPv6-Fwd: SAS on intf GigabitEthernet0/1 picked source FE80::76A2:E6FF:FED1:6859 for FF02::A
+*Apr  8 05:42:03.859: IPV6: source FE80::76A2:E6FF:FED1:6859 (local)
+*Apr  8 05:42:03.859:       dest FF02::A (GigabitEthernet0/1)
+*Apr  8 05:42:03.859:       traffic class 224, flow 0x0, len 80+0, prot 88, hops 1, originating
+*Apr  8 05:42:03.859: IPv6-Fwd: Sending on GigabitEthernet0/1
+*
+R2#Apr  8 05:42:04.207: IPV6: source FE80::207:7DFF:FE5E:FDEB (local)
+*Apr  8 05:42:04.207:       dest FF02::1:FF0A:302 (FastEthernet0/1/0)
+*Apr  8 05:42:04.207:       traffic class 224, flow 0x0, len 72+0, prot 58, hops 255, originating
+*Apr  8 05:42:04.207: IPv6-Fwd: Sending on FastEthernet0/1/0
+*Apr  8 05:42:04.603: IPV6: source FE80::1AE7:28FF:FEDF:B760 (FastEthernet0/1/0)
+*Apr  8 05:42:04.603:       dest FF02::A
+*Apr  8 05:42:04.603:       traffic class 224, flow 0x0, len 80+14, prot 88, hops 1, fo
+R2#rward to ulp
+R2#
+
+
+
+-----------------------------------
+r1 ...
+
+class-map match-all class1
+ match any
+
+policy-map policy1
+ class class1
+  shape peak 256000 1500 0
+  queue-limit 10 packets
+
+interface GigabitEthernet0/0
+ service-policy output policy1
+
+
+
+
+BranchA#ping 10.10.4.2 re 10000 size 16300
+Type escape sequence to abort.
+Sending 10000, 16300-byte ICMP Echos to 10.10.4.2, timeout is 2 seconds:
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!.!!!!!!!.!!!!!!!!!!.!!!!!.!!!!!!!
+!!.!!!!!.!!!!!!!.
+
+
+R2#ping 10.10.4.2 re 10000
+Type escape sequence to abort.
+Sending 10000, 100-byte ICMP Echos to 10.10.4.2, timeout is 2 seconds:
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!.!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+!!!!!!!!!!!!.!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+!!!!!!!!!!!!!!!!!!!!!.
+
+
+
+R1#sh policy-map interface g0/0
+ GigabitEthernet0/0
+
+  Service-policy output: policy1
+
+    Class-map: class1 (match-all)
+      4535 packets, 6392720 bytes
+      5 minute offered rate 97000 bps, drop rate 0000 bps
+      Match: any
+      Queueing
+      queue limit 10 packets
+      (queue depth/total drops/no-buffer drops) 6/78/0
+      (pkts output/bytes output) 4457/6351168
+      shape (peak) cir 256000, bc 1500, be 0
+      target shape rate 256000
+
+
+    Class-map: class-default (match-any)
+      0 packets, 0 bytes
+      5 minute offered rate 0000 bps, drop rate 0000 bps
+      Match: any
+
+      queue limit 64 packets
+      (queue depth/total drops/no-buffer drops) 0/0/0
+
+R1#sh run cl
+R1#sh run class-map
+Building configuration...
+
+Current configuration : 47 bytes
+!
+class-map match-all class1
+ match any
+end
+
+R1#sh run po
+R1#sh run policy-map
+Building configuration...
+
+Current configuration : 96 bytes
+!
+policy-map policy1
+ class class1
+  shape peak 256000 1500 0
+  queue-limit 10 packets
+!
+end
+
+R1#sh run in g0/0
+Building configuration...
+
+Current configuration : 161 bytes
+!
+interface GigabitEthernet0/0
+ ip address 10.10.4.1 255.255.255.0
+ duplex full
+ speed 10
+ rj45-auto-detect-polarity disable
+ service-policy output policy1
+end
+
+R1#
+R1#
+
+
+
+
+
+R1#sh int g0/0 | in ueue
+  Input queue: 0/75/0/0 (size/max/drops/flushes); Total output drops: 104
+  Queueing strategy: fifo
+  Output queue: 0/40 (size/max)
+R1#conf t
+Enter configuration commands, one per line.  End with CNTL/Z.
+R1(config)#class-map match-all class1
+R1(config-cmap)# match any
+R1(config-cmap)#policy-map policy1
+R1(config-pmap)# class class1
+R1(config-pmap-c)#  shape peak 256000 1500 0
+R1(config-pmap-c)#  queue-limit 10 packets
+R1(config-pmap-c)#do sh int g0/0 | in ueue
+  Input queue: 0/75/0/0 (size/max/drops/flushes); Total output drops: 104
+  Queueing strategy: fifo
+  Output queue: 0/40 (size/max)
+R1(config-pmap-c)#interface GigabitEthernet0/0
+R1(config-if)# service-policy output policy1
+R1(config-if)#do sh int g0/0 | in ueue
+  Input queue: 0/75/0/0 (size/max/drops/flushes); Total output drops: 104
+  Queueing strategy: Class-based queueing
+  Output queue: 0/1000/0 (size/max total/drops)
+
+---------------------------------
+excercise....
+
+....before policer...
+
+R2#sh int f0/1/0 | in 30 sec
+  30 second input rate 8513000 bits/sec, 833 packets/sec
+  30 second output rate 8512000 bits/sec, 833 packets/sec
+
+configure policer...
+
+class-map match-all my-policer
+ match protocol ip
+
+policy-map my-policer
+ class my-policer
+  police 1000000
+
+interface FastEthernet0/1/0
+ service-policy input my-policer
+
+verify...
+
+R2#sh policy-map int f0/1/0
+ FastEthernet0/1/0
+
+  Service-policy input: my-policer
+
+    Class-map: my-policer (match-all)
+      1676 packets, 2119504 bytes
+      30 second offered rate 165000 bps, drop rate 36000 bps
+      Match: protocol ip
+      police:
+          cir 1000000 bps, bc 31250 bytes
+        conformed 1332 packets, 1648508 bytes; actions:
+          transmit
+        exceeded 344 packets, 470996 bytes; actions:
+          drop
+        conformed 129000 bps, exceeded 36000 bps
+
+    Class-map: class-default (match-any)
+      0 packets, 0 bytes
+      30 second offered rate 0000 bps, drop rate 0000 bps
+      Match: any
+
+
+...after shaper...
+
+
+BranchA#sh run clas
+BranchA#sh run class-map
+Building configuration...
+
+Current configuration : 57 bytes
+!
+class-map match-all my-shaper
+ match protocol ip
+end
+
+BranchA#sh run poli
+BranchA#sh run policy-map
+Building configuration...
+
+Current configuration : 75 bytes
+!
+policy-map my-shaper
+ class my-shaper
+  shape average 1000000
+!
+end
+
+BranchA#sh run int g0/0
+Building configuration...
+
+Current configuration : 181 bytes
+!
+interface GigabitEthernet0/0
+ ip address 10.10.4.2 255.255.255.0
+ load-interval 30
+ duplex full
+ speed 10
+ rj45-auto-detect-polarity disable
+ service-policy output my-shaper
+end
+
+BranchA#
+BranchA#sh policy-map interface g0/0
+ GigabitEthernet0/0
+
+  Service-policy output: my-shaper
+
+    Class-map: my-shaper (match-all)
+      18468 packets, 23181952 bytes
+      30 second offered rate 962000 bps, drop rate 0000 bps
+      Match: protocol ip
+      Queueing
+      queue limit 64 packets
+      (queue depth/total drops/no-buffer drops) 8/0/0
+      (pkts output/bytes output) 18468/23181952
+      shape (average) cir 1000000, bc 4000, be 4000
+      target shape rate 1000000
+
+    Class-map: class-default (match-any)
+      202 packets, 22091 bytes
+      30 second offered rate 0000 bps, drop rate 0000 bps
+      Match: any
+
+      queue limit 64 packets
+      (queue depth/total drops/no-buffer drops) 0/0/0
+      (pkts output/bytes output) 202/22091
+BranchA#
+
+
+R2#sh int f0/1/0 | in 30 sec
+  30 second input rate 994000 bits/sec, 97 packets/sec
+  30 second output rate 994000 bits/sec, 97 packets/sec
+
+
+R2#sh policy-map interface f0/1/0
+ FastEthernet0/1/0
+
+  Service-policy input: my-policer
+
+    Class-map: my-policer (match-all)
+      27696 packets, 34936364 bytes
+      30 second offered rate 998000 bps, drop rate 0000 bps
+      Match: protocol ip
+      police:
+          cir 1000000 bps, bc 31250 bytes
+        conformed 27287 packets, 34373538 bytes; actions:
+          transmit
+        exceeded 409 packets, 562826 bytes; actions:
+          drop
+        conformed 999000 bps, exceeded 0000 bps
+
+    Class-map: class-default (match-any)
+      0 packets, 0 bytes
+      30 second offered rate 0000 bps, drop rate 0000 bps
+      Match: any
+
+
+----------------------------------
+
+queueing excercise...
+
+BranchA#sh access-list 1
+Standard IP access list 1
+    10 permit 10.10.1.3 (50336 matches)
+
+
+
+class-map match-all bypass
+ match access-group 1
+class-map match-all my-shaper
+ match protocol ip
+
+policy-map my-shaper
+ class bypass
+  bandwidth percent 50
+ class my-shaper
+  shape average 1000000
+
+BranchA#sh policy-map int g0/0
+ GigabitEthernet0/0
+
+  Service-policy output: my-shaper
+
+    Class-map: bypass (match-all)
+      37103 packets, 51789042 bytes
+      5 minute offered rate 1155000 bps, drop rate 0000 bps
+      Match: access-group 1
+      Queueing
+      queue limit 64 packets
+      (queue depth/total drops/no-buffer drops) 0/0/0
+      (pkts output/bytes output) 37103/51789042
+      bandwidth 50% (50000 kbps)
+
+    Class-map: my-shaper (match-all)
+      7064 packets, 9812280 bytes
+      5 minute offered rate 221000 bps, drop rate 0000 bps
+      Match: protocol ip
+      Queueing
+      queue limit 64 packets
+      (queue depth/total drops/no-buffer drops) 34/0/0
+      (pkts output/bytes output) 7064/9812280
+      shape (average) cir 1000000, bc 4000, be 4000
+      target shape rate 1000000
+
+    Class-map: class-default (match-any)
+      10 packets, 1240 bytes
+      5 minute offered rate 0000 bps, drop rate 0000 bps
+      Match: any
+
+      queue limit 64 packets
+      (queue depth/total drops/no-buffer drops) 0/0/0
+      (pkts output/bytes output) 22/18108
+

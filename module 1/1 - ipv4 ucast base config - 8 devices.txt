@@ -1,0 +1,208 @@
+asw1----dsw1----r1----isp_a----branch_a----r2----dsw2----asw2
+
+asw1...
+
+en
+conf t
+alias exec ib sh ip int br
+int vl 1
+shut
+int f0
+shut
+ip default-gateway 10.10.100.1
+vlan 10
+default int g1/0/45
+interface GigabitEthernet1/0/45
+ switchport trunk allowed vlan 10
+ switchport mode trunk
+int vl 10
+ip addr 10.10.100.2 255.255.255.0
+no shut
+do wr
+
+dsw1...
+
+en
+conf t
+int lo 0
+ip addr 10.10.0.1 255.255.255.255
+ip routing
+alias exec ib sh ip int br
+int range g1/0/1-24
+shut
+vlan 10
+interface GigabitEthernet1/0/21
+ switchport trunk allowed vlan 10
+ sw tr en dot1q
+ switchport mode trunk
+int vl 10
+ip addr 10.10.100.1 255.255.255.0 
+int g1/0/13
+no switch
+no shut
+ip addr 10.10.1.2 255.255.255.0
+int g1/0/21
+no shut
+router eigrp 1
+network 0.0.0.0
+no auto-summ
+do wr
+
+r1...
+
+en
+conf t
+int lo 0
+ip addr 10.10.0.2 255.255.255.255
+ip routing
+alias exec ib sh ip int br
+int g0/1
+shut
+int g0/0
+no shut
+ip addr 10.10.1.1 255.255.255.0
+int f0/0/0
+no shut
+ip addr 10.10.2.2 255.255.255.0
+router eigrp 1
+network 0.0.0.0
+no auto-summ
+do wr
+
+isp-a...
+
+en
+conf t
+int lo 0
+ip addr 10.10.0.3 255.255.255.255
+ip routing
+alias exec ib sh ip int br
+int f0/3/3
+shut
+int f0/3/1
+shut
+int f0/3/0
+switchport access vlan 10
+no shut
+int vlan 10
+no shut
+ip addr 10.10.2.1 255.255.255.0
+int f0/3/2
+switchport access vlan 11
+no shut
+int vlan 11
+no shut
+ip addr 10.10.3.2 255.255.255.0
+int l 8
+shut
+int l 123
+shut
+router eigrp 1
+network 0.0.0.0
+no auto-summ
+do wr
+
+branch-a...
+
+en
+conf t
+int lo 0
+ip addr 10.10.0.4 255.255.255.255
+ip routing
+alias exec ib sh ip int br
+int g0/1
+no shut
+ip addr 10.10.3.1 255.255.255.0
+int g0/0
+no shut
+ip addr 10.10.4.2 255.255.255.0
+router eigrp 1
+network 0.0.0.0
+no auto-summ
+do wr
+
+r2...
+
+en
+conf t
+int lo 0
+ip addr 10.10.0.5 255.255.255.255
+ip routing
+alias exec ib sh ip int br
+int g0/1
+no shut
+ip addr 10.10.5.2 255.255.255.0
+int f0/1/0
+no shut
+ip addr 10.10.4.1 255.255.255.0
+router eigrp 1
+network 0.0.0.0
+no auto-summ
+do wr
+
+dsw2...
+
+en
+conf t
+ip routing
+alias exec ib sh ip int br
+vlan 10
+interface GigabitEthernet1/0/24
+ switchport trunk allowed vlan 10
+ sw tr en dot1q
+ switchport mode trunk
+int vl 10
+ip addr 10.10.200.1 255.255.255.0
+int g1/0/21
+shut
+int g1/0/22
+shut
+interface GigabitEthernet1/0/14
+no shut
+ no switchport
+ ip address 10.10.5.1 255.255.255.0
+int l 0
+ip addr 10.10.0.6 255.255.255.255
+router eigrp 1
+ network 0.0.0.0
+no auto-summary
+do wr
+
+asw2...
+
+en
+conf t
+alias exec ib sh ip int br
+ip default-gateway 10.10.200.1
+vlan 10
+default int g1/0/48
+interface GigabitEthernet1/0/48
+ switchport trunk allowed vlan 10
+ switchport mode trunk
+int vl 10
+ip addr 10.10.200.2 255.255.255.0
+no shut
+do wr
+
+... results...
+
+ASW1#traceroute 10.10.200.2
+Type escape sequence to abort.
+Tracing the route to 10.10.200.2
+VRF info: (vrf in name/id, vrf out name/id)
+  1 10.10.100.1 0 msec 5 msec 10 msec
+  2 10.10.1.1 6 msec 0 msec 0 msec
+  3 10.10.2.1 0 msec 5 msec 0 msec
+  4 10.10.3.1 5 msec 0 msec 0 msec
+  5 10.10.4.1 0 msec 0 msec 10 msec
+  6 10.10.5.1 5 msec 6 msec 0 msec
+  7 10.10.200.2 15 msec *  0 msec
+ASW1#
+
+ASW1#ping 10.10.200.2
+Type escape sequence to abort.
+Sending 5, 100-byte ICMP Echos to 10.10.200.2, timeout is 2 seconds:
+!!!!!
+Success rate is 100 percent (5/5), round-trip min/avg/max = 1/9/32 ms
+ASW1#
+

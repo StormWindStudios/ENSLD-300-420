@@ -1,0 +1,294 @@
+asw1...
+
+en
+term length 40
+conf t
+vtp mode transparent
+no vlan 2-1001
+no vlan 1006-4094
+alias exec ib sh ip int br
+int vlan 1
+shut
+int g1/0/45
+shut
+int g1/0/47
+shut
+int f0
+shut
+vlan 10
+default int g1/0/46
+interface GigabitEthernet1/0/46
+no shut
+ switchport trunk allowed vlan 10
+ switchport mode trunk
+default int g1/0/48
+interface GigabitEthernet1/0/48
+no shut
+ switchport trunk allowed vlan 10
+ switchport mode trunk
+int vl 10
+ip addr 10.10.100.12 255.255.255.0
+no shut
+exit
+ip default-gateway 10.10.100.1
+do wr
+
+
+asw2...
+
+en
+term length 40
+conf t
+vtp mode transparent
+no vlan 2-1001
+no vlan 1006-4094
+alias exec ib sh ip int br
+int vlan 1
+shut
+int g1/0/45
+shut
+int g1/0/47
+shut
+int f0
+shut
+vlan 10
+default int g1/0/46
+interface GigabitEthernet1/0/46
+no shut
+ switchport trunk allowed vlan 10
+ switchport mode trunk
+default int g1/0/48
+interface GigabitEthernet1/0/48
+no shut
+ switchport trunk allowed vlan 10
+ switchport mode trunk
+int vl 10
+ip addr 10.10.100.13 255.255.255.0
+no shut
+exit
+ip default-gateway 10.10.100.1
+do wr
+
+dsw1...
+
+en
+term length 40
+conf t
+vtp mode transparent
+no vlan 2-1001
+no vlan 1006-4094
+alias exec ib sh ip int br
+int vlan 1
+shut
+int f0
+shut
+vlan 10
+default int g1/0/13
+interface GigabitEthernet1/0/13
+ switchport access vlan 10
+ switchport mode access
+ spanning-tree portfast edge
+int g1/0/14
+shut
+int range g1/0/18 - 20
+shut
+default int g1/0/17
+interface GigabitEthernet1/0/17
+sw tr en dot1q
+no shut
+ switchport trunk allowed vlan 10
+ switchport mode trunk
+default int g1/0/22
+interface GigabitEthernet1/0/22
+sw tr en dot1q
+no shut
+ switchport trunk allowed vlan 10
+ switchport mode trunk
+default int g1/0/24
+interface GigabitEthernet1/0/24
+sw tr en dot1q
+no shut
+ switchport trunk allowed vlan 10
+ switchport mode trunk
+int vl 10
+ip addr 10.10.100.10 255.255.255.0
+no shut
+exit
+ip default-gateway 10.10.100.1
+do wr
+
+dsw2...
+
+en
+term length 40
+conf t
+vtp mode transparent
+no vlan 2-1001
+no vlan 1006-4094
+alias exec ib sh ip int br
+int vlan 1
+shut
+int f0
+shut
+vlan 10
+int g1/0/13
+shut
+default int g1/0/14
+interface GigabitEthernet1/0/14
+ switchport access vlan 10
+ switchport mode access
+ spanning-tree portfast edge
+int range g1/0/18 - 20
+shut
+default int g1/0/17
+interface GigabitEthernet1/0/17
+sw tr en dot1q
+no shut
+ switchport trunk allowed vlan 10
+ switchport mode trunk
+default int g1/0/22
+interface GigabitEthernet1/0/22
+sw tr en dot1q
+no shut
+ switchport trunk allowed vlan 10
+ switchport mode trunk
+default int g1/0/24
+interface GigabitEthernet1/0/24
+sw tr en dot1q
+no shut
+ switchport trunk allowed vlan 10
+ switchport mode trunk
+int vl 10
+ip addr 10.10.100.11 255.255.255.0
+no shut
+exit
+ip default-gateway 10.10.100.1
+do wr
+
+r1...
+
+en
+term length 40
+conf t
+int f0/0/1
+shut
+int lo 0
+ip addr 10.10.0.1 255.255.255.255
+ip routing
+alias exec ib sh ip int br
+default int g0/0
+int g0/0
+no shut
+ip addr 10.10.100.2 255.255.255.0
+int g0/1
+shut
+default int f0/0/0
+int f0/0/0
+no shut
+ip addr 10.10.1.2 255.255.255.0
+exit
+router ospf 1
+network 0.0.0.0 255.255.255.255 area 0
+passive g0/0
+passive lo0
+do wr
+
+r2...
+
+en
+term length 40
+conf t
+int g0/0
+shut
+int f0/0/0
+shut
+int lo 0
+ip addr 10.10.0.4 255.255.255.255
+ip routing
+alias exec ib sh ip int br
+int g0/1
+no shut
+ip addr 10.10.100.3 255.255.255.0
+int f0/1/0
+no shut
+ip addr 10.10.3.2 255.255.255.0
+exit
+router ospf 1
+network 0.0.0.0 255.255.255.255 area 0
+passive g0/1
+passive lo0
+do wr
+
+branch-a...
+
+en
+term length 40
+conf t
+int lo 0
+ip addr 10.10.0.3 255.255.255.255
+ip routing
+alias exec ib sh ip int br
+int g0/1
+no shut
+ip addr 10.10.2.2 255.255.255.0
+int g0/0
+no shut
+ip addr 10.10.3.1 255.255.255.0
+exit
+router ospf 1
+network 0.0.0.0 255.255.255.255 area 0
+passive lo0
+do wr
+
+isp-a...
+
+en
+term length 40
+conf t
+int vlan 99
+shut
+int lo 0
+ip addr 10.10.0.2 255.255.255.255
+ip routing
+alias exec ib sh ip int br
+int f0/3/3
+shut
+int f0/3/1
+shut
+int f0/3/0
+switchport access vlan 100
+no shut
+int vlan 100
+no shut
+ip addr 10.10.1.1 255.255.255.0
+int f0/3/2
+switchport access vlan 101
+no shut
+int vlan 101
+no shut
+ip addr 10.10.2.1 255.255.255.0
+int l 8
+no shut
+int l 123
+shut
+exit
+router ospf 1
+network 0.0.0.0 255.255.255.255 area 0
+passive lo0
+do wr
+
+
+... results...
+
+ASW1#ping 10.10.100.2
+Type escape sequence to abort.
+Sending 5, 100-byte ICMP Echos to 10.10.100.2, timeout is 2 seconds:
+!!!!!
+Success rate is 100 percent (5/5), round-trip min/avg/max = 1/1/5 ms
+
+ASW1#ping 10.10.100.3
+Type escape sequence to abort.
+Sending 5, 100-byte ICMP Echos to 10.10.100.3, timeout is 2 seconds:
+!!!!!
+Success rate is 100 percent (5/5), round-trip min/avg/max = 1/1/5 ms
+ASW1#

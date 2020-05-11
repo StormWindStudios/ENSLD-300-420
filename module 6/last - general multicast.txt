@@ -1,0 +1,112 @@
+
+Compare DSW1 and R1... (show inventory, different platforms)
+
+show ip mfib interface
+
+sh ip pim interface f0/0/0 count
+
+sh ip pim interface f0/0/0 stats
+
+how to watch traffic...
+
+sh ip mfib 239.255.1.1
+
+sh ip mroute count
+sh ip mfib count
+
+mstat
+mtrace
+
+
+debug ip mfib fs
+
+cle ip mroute *
+
+
+BranchA#ping 239.255.1.1 re 100 size 1500
+Type escape sequence to abort.
+Sending 100, 1500-byte ICMP Echos to 239.255.1.1, timeout is 2 seconds:
+.............
+
+
+R2#sh ip mfib 239.255.1.1
+Entry Flags:    C - Directly Connected, S - Signal, IA - Inherit A flag,
+                ET - Data Rate Exceeds Threshold, K - Keepalive
+                DDE - Data Driven Event, HW - Hardware Installed
+                ME - MoFRR ECMP entry, MNE - MoFRR Non-ECMP entry, MP - MFIB
+                MoFRR Primary, RP - MRIB MoFRR Primary, P - MoFRR Primary
+                MS  - MoFRR  Entry in Sync, MC - MoFRR entry in MoFRR Client.
+I/O Item Flags: IC - Internal Copy, NP - Not platform switched,
+                NS - Negate Signalling, SP - Signal Present,
+                A - Accept, F - Forward, RA - MRIB Accept, RF - MRIB Forward,
+                MA - MFIB Accept, A2 - Accept backup,
+                RA2 - MRIB Accept backup, MA2 - MFIB Accept backup
+
+Forwarding Counts: Pkt Count/Pkts per second/Avg Pkt Size/Kbits per second
+Other counts:      Total/RPF failed/Other drops
+I/O Item Counts:   FS Pkt Count/PS Pkt Count
+Default
+ (*,239.255.1.1) Flags: C
+   SW Forwarding: 0/0/0/0, Other: 0/0/0
+   FastEthernet0/1/1 Flags: A
+ (10.1.3.1,239.255.1.1) Flags:
+   SW Forwarding: 1/0/1500/1, Other: 3/0/3
+   FastEthernet0/1/0 Flags: A
+
+shows 1500 byte packet for Avg Packet Size, won't reseat until you clear ip mroute *
+
+
+* see multicast status...
+* 2 commands similar output...
+* SOMETIMES COMMAND DOESN'T ShOW DETAILS, PING LARGER SIZE
+
+R2#show ip mfib active
+Active Multicast Sources - sending >= 4 kbps
+Default
+Group: 239.255.1.1
+  Source: 10.1.6.2,
+   SW Rate: 1 pps/15 kbps(1sec), 8 kbps(last 1094 sec)
+
+R2#sh ip mroute active
+Use "show ip mfib active" to get better response time for a large number of mroutes.
+
+Active IP Multicast Sources - sending >= 4 kbps
+
+Group: 239.255.1.1, (?)
+   Source: 10.1.6.2 (?)
+     Rate: 1 pps/15 kbps(1sec), 15 kbps(last 50 secs), 12 kbps(life avg)
+
+
+R2#mstat 10.1.6.2
+Type escape sequence to abort.
+Mtrace from 10.1.6.2 to 10.1.5.1 via RPF
+From source (?) to destination (?)
+Waiting to accumulate statistics......
+Results after 10 seconds:
+
+  Source        Response Dest   Packet Statistics For     Only For Traffic
+10.1.6.2        10.1.5.1        All Multicast Traffic     From 10.1.6.2
+     |       __/  rtt 0    ms   Lost/Sent = Pct  Rate     To 0.0.0.0
+     v      /     hop 0    ms   ---------------------     --------------------
+10.1.6.1
+10.1.5.2        ?
+     |     ^      ttl   0
+     v     |      hop 0    ms    0/0 = --%      0 pps    0/0 = --%  0 pps
+10.1.5.1        ?
+     |      \__   ttl   1
+     v         \  hop 0    ms        0         0 pps           0    0 pps
+10.1.5.1        10.1.5.1
+  Receiver      Query Source
+
+
+
+R2#mtrace 10.1.6.2
+Type escape sequence to abort.
+Mtrace from 10.1.6.2 to 10.1.5.1 via RPF
+From source (?) to destination (?)
+Querying full reverse path...
+ 0  10.1.5.1
+-1  10.1.5.1 ==> 10.1.5.1 PIM  [10.1.6.0/24]
+-2  10.1.5.2 ==> 10.1.6.1 PIM_MT  [10.1.6.0/24]
+-3  10.1.6.2
+

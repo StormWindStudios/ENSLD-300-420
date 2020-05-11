@@ -1,0 +1,175 @@
+assumes "1 - ipv4 ucast base config - 6 routers - not asw1 or 2" is complete
+-----------------------------
+adding ipv6 to the above topology...
+what i'm doing is...
+- adding publicly routeable ipv6 addresses to loopbacks of all 6 routers
+- NOT adding any ipv6 addresses to transit interfaces, but rather, showing how fe80 LL's work fine for core routing
+
+
+dsw1....
+
+en
+conf t
+ipv6 unicast-routing
+ipv6 router eigrp 1
+interface Loopback0
+ipv6 enable
+ipv6 eigrp 1
+ipv6 addr 2626:2626::1/128
+interface g1/0/13
+ ipv6 enable
+ ipv6 eigrp 1
+do wr
+
+r1...
+
+en
+conf t
+ipv6 unicast-routing
+ipv6 router eigrp 1
+interface Loopback0
+ipv6 enable
+ipv6 eigrp 1
+ipv6 addr 2626:2626::2/128
+interface g0/0
+ ipv6 enable
+ ipv6 eigrp 1
+interface f0/0/0
+ ipv6 enable
+ ipv6 eigrp 1
+do wr
+
+isp a....
+
+en
+conf t
+ipv6 unicast-routing
+ipv6 router eigrp 1
+interface Loopback0
+ipv6 enable
+ipv6 eigrp 1
+ipv6 addr 2626:2626::3/128
+interface Vlan11
+ ipv6 enable
+ ipv6 eigrp 1
+interface Vlan10
+ ipv6 enable
+ ipv6 eigrp 1
+do wr
+
+branch a...
+
+en
+conf t
+ipv6 unicast-routing
+ipv6 router eigrp 1
+interface Loopback0
+ipv6 enable
+ipv6 eigrp 1
+ipv6 addr 2626:2626::4/128
+int g0/1
+ipv6 enable
+ipv6 eigrp 1
+int g0/0
+ipv6 enable
+ipv6 eigrp 1
+do wr
+
+
+r2....
+
+en
+conf t
+ipv6 unicast-routing
+ipv6 router eigrp 1
+interface Loopback0
+ipv6 enable
+ipv6 eigrp 1
+ipv6 addr 2626:2626::5/128
+interface f0/1/0
+ ipv6 enable
+ ipv6 eigrp 1
+interface g0/1
+ ipv6 enable
+ ipv6 eigrp 1
+do wr
+
+dsw2....
+
+en
+conf t
+ipv6 unicast-routing
+ipv6 router eigrp 1
+interface Loopback0
+ipv6 enable
+ipv6 eigrp 1
+ipv6 addr 2626:2626::6/128
+interface g1/0/14
+no switchpo
+ ipv6 enable
+ ipv6 eigrp 1
+do wr
+
+results...
+
+DSW2#traceroute 2626:2626::1
+Type escape sequence to abort.
+Tracing the route to 2626:2626::1
+
+  1 2626:2626::5 0 msec 0 msec 0 msec
+  2 2626:2626::4 0 msec 0 msec 8 msec
+  3 2626:2626::3 0 msec 0 msec 0 msec
+  4 2626:2626::2 0 msec 0 msec 0 msec
+  5 2626:2626::1 0 msec 8 msec 25 msec
+DSW2#tr
+DSW2#traceroute 10.10.0.1
+Type escape sequence to abort.
+Tracing the route to 10.10.0.1
+VRF info: (vrf in name/id, vrf out name/id)
+  1 10.10.5.2 0 msec 9 msec 0 msec
+  2 10.10.4.2 0 msec 8 msec 0 msec
+  3 10.10.3.2 0 msec 0 msec 9 msec
+  4 10.10.2.2 0 msec 0 msec 0 msec
+  5 10.10.1.2 8 msec *  0 msec
+DSW2#wr
+
+mention the ipv6 neighbor table is like the L3 to L2 resolution like arp provides in ipv4...
+
+creating a v4 and v6 local host entry for testing resolution.... seems v6 is preferred...
+
+conf t
+ip host dsw1 10.10.0.1
+ipv6 host dsw1 2626:2626::1
+do wr
+
+DSW2#sh host
+Name lookup view: Global
+Default domain is not set
+Name/address lookup uses static mappings
+
+Codes: UN - unknown, EX - expired, OK - OK, ?? - revalidate
+       temp - temporary, perm - permanent
+       NA - Not Applicable None - Not defined
+
+Host                      Port  Flags      Age Type   Address(es)
+dsw1                      None  (perm, OK)  0   IP      10.10.0.1
+dsw1                      None  (perm, OK)  0  IPv6   2626:2626::1
+
+ping prefers v6
+
+DSW2#ping dsw1
+Type escape sequence to abort.
+Sending 5, 100-byte ICMP Echos to 2626:2626::1, timeout is 2 seconds:
+!!!!!
+Success rate is 100 percent (5/5), round-trip min/avg/max = 1/8/25 ms
+
+telnet prefers v6 also...
+
+DSW2#dsw1
+Trying 2626:2626::1 ... Open
+
+DSW1>sh tcp br
+TCB       Local Address               Foreign Address             (state)
+05D23314  2626:2626::1.23            2626:2626::6.64862          ESTAB
+DSW1>sh tcp br ?
+

@@ -1,0 +1,45 @@
+----dsw1----r1
+
+dsw1...
+
+en
+conf t
+router ospf 1
+router-id 10.10.0.1
+network 10.10.0.1 0.0.0.0 area 0
+network 10.10.1.2 0.0.0.0 area 0
+network 10.10.100.1 0.0.0.0 area 1
+network 1.0.2.0 0.0.0.255 area 1
+network 1.0.1.0 0.0.0.255 area 1
+passive-interface loopback 0
+passive-interface vlan 10
+do wr
+
+r1...
+
+en
+conf t
+router ospf 1
+router-id 10.10.0.2
+network 10.10.0.2 0.0.0.0 area 0
+network 10.10.1.1 0.0.0.0 area 0
+network 1.0.0.1 0.0.0.0 area 0
+passive-interface loopback 0
+do wr
+
+... results...
+
+dsw1...
+
+sh ip ospf int br
+sh ip ospf int vl 10 | in Hello
+sh ip ospf int g1/0/13 | in Hello
+sh ip ospf
+sh ip ospf ne
+sh ip ospf database
+sh ip ro osp
+
+r1...
+sh ip ro 1.0.0.0 255.0.0.0 longer-prefixes
+
+

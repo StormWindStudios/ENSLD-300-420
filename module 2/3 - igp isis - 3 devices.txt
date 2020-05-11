@@ -1,0 +1,69 @@
+isp_a----branch_a----r2
+
+isp_a...
+
+en
+conf t
+int loopback 0
+ip router isis
+int vlan 10
+ip router isis
+int vlan 11
+ip router isis
+router isis
+net 01.1111.1111.1111.00
+is-type level-2-only
+passive-interface Loopback0
+passive-interface Vlan10
+do wr
+
+branch_a...
+
+en
+conf t
+int loopback 0
+ip router isis
+int g0/0
+ip router isis
+int g0/1
+ip router isis
+router isis
+net 02.2222.2222.2222.00
+passive-interface Loopback0
+do wr
+
+**** L2 routers DO NOT need to match area ID
+**** L1 routers DO need to match area ID
+
+r2...
+
+en
+conf t
+int loopback 0
+ip router isis
+int f0/1/0
+ip router isis
+int g0/1
+ip router isis
+router isis
+is-type level-1
+net 02.3333.3333.3333.00
+passive-interface Loopback0
+passive-interface g0/1
+do wr
+
+... results...
+
+ISP_A...
+
+sh isis protocol
+show clns
+sh clns interface vlan10
+sh clns interface vlan11
+sh isis database detail
+sh isis neighbors
+sh isis ip unicast rib
+sh isis ip unicast topology l1
+sh isis ip unicast topology l2
+sh isis ip unicast spf-log
+sh ip ro 2.0.0.0 255.0.0.0 longer-prefixes

@@ -1,0 +1,25 @@
+
+bidir pim introduces the concept of "phantom RP" in which the RP actual doesn't perform any function other than being a vector that bidir rp uses to converge on.  it can be a subnet id or actual router, but either will work...
+
+
+sh ip pim interface f0/0/0 df
+
+...all routers...
+
+en 
+conf t
+ip pim bidir-enable
+ip pim rp-address 10.1.1.0 bidir
+
+...give it time, branch_a will re-join....
+
+verify...
+
+sh ip pim rp mapping
+...shows bidir mode...
+
+sh ip mroute
+...shows bidir mroutes...
+
+
+

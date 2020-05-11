@@ -1,0 +1,113 @@
+assumes the following are done....
+"1 - ipv4 ucast base config - 6 routers - not asw1 or 2"
+"2 - adding ipv6 loopbacks pub address and LLs to transit"
+"3 - removing ipv6 loopbacks on 4 routers"
+
+let's add asw 1 and 2 as end host test points...
+
+asw1...
+
+conf t
+vlan 10
+default int g1/0/45
+interface GigabitEthernet1/0/45
+ switchport trunk allowed vlan 10
+ switchport mode trunk
+int vl 10
+ipv6 addr 2626:2626:0001::2/64
+no shut
+do wr
+
+dsw1...
+
+conf t
+ipv6 unicast-routing
+vlan 10
+interface GigabitEthernet1/0/21
+ switchport trunk allowed vlan 10
+ sw tr en dot1q
+ switchport mode trunk
+int vl 10
+ipv6 addr 2626:2626:0001::1/64
+ ipv6 enable
+ ipv6 eigrp 1
+int lo0
+no ipv6 addr
+no ipv6 enable
+no ipv6 eigrp 1
+do wr
+
+asw2...
+
+conf t
+vlan 10
+default int g1/0/48
+interface GigabitEthernet1/0/48
+ switchport trunk allowed vlan 10
+ switchport mode trunk
+int vl 10
+ipv6 addr 2626:2626:0002::2/64
+no shut
+do wr
+
+dsw2...
+
+conf t
+ipv6 unicast-routing
+vlan 10
+interface GigabitEthernet1/0/24
+ switchport trunk allowed vlan 10
+ sw tr en dot1q
+ switchport mode trunk
+int vl 10
+ipv6 addr 2626:2626:0002::1/64
+ ipv6 enable
+ ipv6 eigrp 1
+int lo0
+no ipv6 addr
+no ipv6 enable
+no ipv6 eigrp 1
+do wr
+
+*** USE DIAGRAM ON MY LAPTOP FOR DEMONSTRATING dual stack on edge and how i need to enable ipv6 on transit interface, and allow LL's to only exists.  had to add ...
+
+ASW1#traceroute
+Protocol [ip]: ipv6
+Target IPv6 address: 2626:2626:2::2
+Source address:
+Insert source routing header? [no]:
+Numeric display? [no]: y
+Timeout in seconds [3]: y
+% A decimal number between 1 and 3600.
+Timeout in seconds [3]: 1
+Probe count [3]: 1
+Minimum Time to Live [1]:
+Maximum Time to Live [30]:
+Priority [0]:
+Port Number [0]:
+Type escape sequence to abort.
+Tracing the route to 2626:2626:2::2
+
+  1 2626:2626:1::1 0 msec
+  2  *
+  3  *
+  4  *
+  5  *
+  6 2626:2626:2::1 5 msec
+  7 2626:2626:2::2 5 msec
+
+
+very interesting, that the default gateway was auto-learned , even with static, it's based on neighbor discovery!
+
+ASW1#sh ipv6 rou nd
+IPv6 Routing Table - default - 4 entries
+Codes: C - Connected, L - Local, S - Static, U - Per-user Static route
+       ND - ND Default, NDp - ND Prefix, DCE - Destination, NDr - Redirect
+ND  ::/0 [2/0]
+     via FE80::B2FA:EBFF:FEC3:2842, Vlan10
+
+
+- ipv6 ucast routing
+- global ipv6 eigrp 1
+- interface , ipv6 eigrp 1 and ipv6 enable
+

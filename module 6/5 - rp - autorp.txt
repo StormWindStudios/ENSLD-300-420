@@ -1,0 +1,81 @@
+
+a few different ways to do it
+
+auto-rp (cisco proprietary way to automate RP assignment)
+defines 2 different functions
+- Candidate RP  - xmit RP announcement to 224.0.1.39
+- Mapping Agent - rcv  RP announcement and makes a list of all possible RPs
+...then elect an RP, xmit RP mapping 224.0.1.40...WHICH ALL ROUTERS LISTEN TO
+
+we will do it using sparse-mode interfaces with "ip pim autorp listener" which allows 
+autorp traffic for 239.0.1.39 and .40 to be flooded over strict sparse-mode interfaces
+
+* remove static rp if we did static rp exercise previously
+
+en
+conf t
+no ip pim rp-address 10.0.0.1
+
+cle ip mroute *
+
+...on candidate rp (one or more)
+
+en
+conf t
+ip pim autorp listener
+ip pim send-rp-announce loopback0 scope 10 interval 15
+ip pim send-rp-discovery scope 10 
+do wr
+
+*** removal for later ****
+en
+conf t
+no ip pim autorp listener
+no ip pim send-rp-announce loopback0 scope 10 interval 15
+no ip pim send-rp-discovery scope 10 
+do wr
+*************************
+
+... all routers....
+en
+conf t
+ip pim autorp listener
+do wr
+
+*** removal for later ****
+en
+conf t
+no ip pim autorp listener
+do wr
+**************************
+
+verify, DSW2 pings ??
+
+transit mcast routers...
+sh ip pim rp
+sh ip pim rp mapping
+...elected via Auto-RP
+sh ip pim autorp
+...makes mention of autorp listener
+
+...other info for a different way to do it....
+Sparse-Dense Mode for Auto-RP
+A prerequisite of Auto-RP is that all interfaces must be configured in sparse-dense mode using the ip pim sparse-dense-mode
+
+https://www.cisco.com/c/en/us/td/docs/ios/solutions_docs/ip_multicast/White_papers/rps.html#wp1029236
+
+DSW1#sh ip pim autorp
+AutoRP Information:
+  AutoRP is enabled.
+  RP Discovery packet MTU is 0.
+  224.0.1.40 is joined on Loopback0.
+
+PIM AutoRP Statistics: Sent/Received
+  RP Announce: 0/0, RP Discovery: 0/0
+
+
+
+links....
+
+https://www.cisco.com/c/en/us/support/docs/ip/ip-multicast/9356-48.html#multiple
+https://www.rogerperkin.co.uk/multicast/multicast-ccie-lesson-2-auto-rp/

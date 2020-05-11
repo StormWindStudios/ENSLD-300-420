@@ -1,0 +1,133 @@
+isp-a...
+
+en
+term length 40
+conf t
+vtp mode transparent
+alias exec ib sh ip int br
+int f0/3/3
+shut
+int vl 99
+shut
+default int f0/3/0
+int f0/3/0
+switchport access vlan 101
+no shut
+int vl 101
+no shut
+ip addr 10.10.1.1 255.255.255.0
+ip router isis
+default int f0/3/1
+int f0/3/1
+switchport access vlan 103
+no shut
+int vl 103
+no shut
+ip addr 10.10.3.1 255.255.255.0
+ip router isis
+default int f0/3/2
+int f0/3/2
+switchport access vlan 102
+no shut
+int vl 102
+no shut
+ip addr 10.10.2.1 255.255.255.0
+ip router isis
+int l 8
+shut
+int l 123
+shut
+router isis
+is-type level-2
+net 01.ffff.ffff.ffff.00
+exit
+int lo0
+ip address 10.10.0.254 255.255.255.255
+ip router isis
+do wr
+
+r1...
+
+en
+term length 40
+conf t
+vtp mode transparent
+alias exec ib sh ip int br
+int g0/1
+shut
+default int g0/0
+int g0/0
+no shut
+default int f0/0/0
+int f0/0/0
+no shut
+ip addr 10.10.1.2 255.255.255.0
+ip router isis
+router isis
+is-type level-2
+net 01.1111.1111.1111.00
+int lo0
+ip address 10.10.0.1 255.255.255.255
+ip router isis
+do wr
+
+r2...
+
+en
+term length 40
+conf t
+vtp mode transparent
+alias exec ib sh ip int br
+int g0/0
+shut
+int f0/1/0
+shut
+default int g0/1
+int g0/1
+no shut
+default int f0/0/0
+int f0/0/0
+no shut
+ip addr 10.10.3.2 255.255.255.0
+ip router isis
+router isis
+is-type level-2
+net 01.3333.3333.3333.00
+int lo0
+ip address 10.10.0.3 255.255.255.255
+ip router isis
+do wr
+
+branch-a...
+
+en
+term length 40
+conf t
+vtp mode transparent
+alias exec ib sh ip int br
+default int g0/1
+int g0/1
+no shut
+ip addr 10.10.2.2 255.255.255.0
+ip router isis
+router isis
+is-type level-2
+net 01.2222.2222.2222.00
+int lo0
+ip address 10.10.0.2 255.255.255.255
+ip router isis
+do wr
+
+verify core...
+
+isp_a... should have neighbor with all 3 sites...
+sh isis ne
+
+site should see isis learned routes...
+
+sh ip ro isis
+
+ping a few...
+ping 10.10.0.2
+ping 10.10.0.3
+

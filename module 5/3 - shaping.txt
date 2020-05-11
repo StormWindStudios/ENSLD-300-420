@@ -1,0 +1,45 @@
+************** SHAPING
+(this shaper is quite effective at preventing any drops from the policer)
+
+*on r1 interface towards ISP_A
+
+en
+conf t
+class-map match-all my-shaper
+ match protocol ip
+
+policy-map my-shaper
+ class my-shaper
+  shape average 1000000
+
+
+interface f0/0/0
+ service-policy output my-shaper
+
+verify shaper...
+sh policy-map interface f0/0/0
+
+* quite effective....
+* see queue limit default 64
+* see queue currently...
+(queue depth/total drops/no-buffer drops) 20/0/0
+...
+
+demonstrate WHAT IF current queue was more than queue depth could support....
+
+en
+conf t
+policy-map my-shaper
+ class my-shaper
+queue-limit 10
+do wr
+
+* now queue is being overwhelmed and can't satisfy current load....
+* qos doesn't create bandwidth IF IT's CONSTANTLY NEEDED
+* see queue limit now 10
+* see queue currently...
+ queue limit 10 packets
+      (queue depth/total drops/no-buffer drops) 0/15/0
+
+
+

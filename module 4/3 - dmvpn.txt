@@ -1,0 +1,225 @@
+
+dmvpn - dynamic multipoint virtual private network
+
+branch_a (main site)...
+
+prep the main site with some local interfaces to emulate a LAN Like sites 1 and 2....
+
+local ospf branch_a side...
+
+en
+term length 40
+conf t
+int lo1
+ip addr 192.168.2.1 255.255.255.255
+int lo2
+ip addr 192.168.20.1 255.255.255.0
+router ospf 1
+network 192.168.2.1 0.0.0.0 area 0
+network 192.168.20.1 0.0.0.0 area 0
+do wr
+
+sh ip os int br
+sh ip os ne
+...no neighbor yet...
+
+------ DMVPN
+
+- mGRE interface
+- source ip is wan public
+- dmvpn based on NHRP, like arp, to resolve next hops
+- nhrp net-id, this dmvpn, all endpoints must have some network-id 1
+- spokes are NH clients of the NH server in the nhrp protocol
+- 192.168.0.1 - main site tunnel ip
+- 10.10.2.2   - main site public ip on wan
+- NOTICE, we do not have a tunnel DESTINATION ! nor anything about the spokes config'd here at the 
+hub site...
+
+en
+conf t
+interface Tunnel0
+ ip address 192.168.0.1 255.255.255.0
+ no ip redirects
+ ip nhrp authentication cisco123
+ ip nhrp map multicast dynamic
+ ip nhrp network-id 1
+ tunnel source 10.10.2.2
+ tunnel mode gre multipoint
+do wr
+
+r1 and r2 spoke sites...
+
+- spoke sites must have hub site info
+- spoke sites do not need to have other spoke info
+- 
+- 192.168.0.1 - main site tunnel ip
+- 10.10.2.2   - main site public ip on wan
+- f0/0/0      - wan interface incase we have ip change due to dhcp
+- 192.168.0.2 - spoke site 1 tunnel ip
+- 192.168.0.3 - spoke site 2 tunnel ip
+
+r1 and r2... same except for tunnel ip!
+
+r1...
+
+en
+conf t
+interface Tunnel0
+ ip address 192.168.0.2 255.255.255.0
+ no ip redirects
+ ip nhrp authentication cisco123
+ ip nhrp map multicast dynamic
+ ip nhrp map 192.168.0.1 10.10.2.2
+ ip nhrp map multicast 10.10.2.2
+ ip nhrp network-id 1
+ ip nhrp nhs 192.168.0.1
+ tunnel source f0/0/0
+ tunnel mode gre multipoint
+do wr
+
+r2... same as r1 except tunnel ip 
+
+en
+conf t
+interface Tunnel0
+ ip address 192.168.0.3 255.255.255.0
+ no ip redirects
+ ip nhrp authentication cisco123
+ ip nhrp map multicast dynamic
+ ip nhrp map 192.168.0.1 10.10.2.2
+ ip nhrp map multicast 10.10.2.2
+ ip nhrp network-id 1
+ ip nhrp nhs 192.168.0.1
+ tunnel source f0/0/0
+ tunnel mode gre multipoint
+do wr
+
+verify...
+
+sh dmvpn
+sh dmvpn detail
+sh interf tun 0
+interface is multipoint-GRE
+
+hub sees spokes as dymically built...
+
+nice that it scales with no need to configure spokes from hub side
+
+from branch 1
+ping 192.168.0.2
+ping 192.168.0.3
+
+from r1 or r2, ping other... see dynamic tunnel direct to remote...
+
+like from r1...
+ping 192.168.0.3
+
+sh dmvpn to see dynamic spoke
+
+also, ping self and TRACEROUTE... interesting that you have to go to the NHRP server to resolve your own up... except the NHS itself...revolves locally
+
+now let's add tunnel 0 to ospf
+
+first on dsw1....
+ping 192.168.20.1 re 100000
+
+branch_a...
+
+en
+conf t
+router ospf 1
+ network 192.168.0.1 0.0.0.0 area 0
+do wr
+
+sh ip ospf int br
+sh ip ospf ne
+...no neighbor yet...
+
+r1...
+
+en
+conf t
+router ospf 1
+ network 192.168.0.2 0.0.0.0 area 0
+do wr
+
+...jump back to branch_a real quick, see neighbor up...
+
+sh ip ospf int br
+sh ip ospf ne
+
+now dsw1 LAN can ping lo1 on branch_a....
+
+DSW1#ping 192.168.20.1
+Type escape sequence to abort.
+Sending 5, 100-byte ICMP Echos to 192.168.20.1, timeout is 2 seconds:
+!!!!!
+Success rate is 100 percent (5/5), round-trip min/avg/max = 1/4/9 ms
+DSW1#tra
+DSW1#traceroute 192.168.20.1
+Type escape sequence to abort.
+Tracing the route to 192.168.20.1
+VRF info: (vrf in name/id, vrf out name/id)
+  1 192.168.10.1 0 msec 0 msec 8 msec
+  2 192.168.0.1 0 msec *  0 msec
+
+
+moving on to r2...
+
+
+r2...
+
+en
+conf t
+router ospf 1
+network 192.168.0.3 0.0.0.0 area 0
+do wr
+
+* PROBLEM!
+
+OSPF STARTS FLAPPING ON THIS R2 and previous R1 and dsw1 looses ability to ping branch LAN loopback
+
+hurry and turn it off on r2....
+
+no network 192.168.0.3 0.0.0.0 area 0
+
+fix....
+...NOTIVE default tunnel interface is P2P...
+
+BranchA#sh ip ospf int tun 0
+Tunnel0 is up, line protocol is up
+  Internet Address 192.168.0.1/24, Area 0, Attached via Network Statement
+  Process ID 1, Router ID 192.168.2.1, Network Type POINT_TO_POINT, Cost: 1000
+
+OSPF over DMVPN works if tunnel interfaces are reconfig'd as BROADCAST network type...
+
+let's fix previous r1 and branch_a, also put on r2....
+
+en
+conf t
+int tun 0
+ip ospf network broadcast
+do wr
+
+BE PATIENT FOR NEIGHBORSHIP AND DSW1 pings...
+
+now do r2 ospf....
+
+en
+conf t
+int tun 0
+ip ospf network broadcast
+router ospf 1
+network 192.168.0.3 0.0.0.0 area 0
+do wr
+
+------------------------------------
+(btw, if we didn't first delete that gre tunnel in the previous lab, you will see a message like this....
+...
+*Apr 16 18:06:52.332: %TUN-4-VALIDATE_TUNNEL_CONFIG: The configured tunnel src is being shared by multiple
+     features on the device. Ex: Tunnel1 & Tunnel0. This configuration has
+     the potential to introduce forwarding issues.
+...
+which is why we deleted it first)
+
+ 

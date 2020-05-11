@@ -1,0 +1,252 @@
+
+*** BASIC HSRP Config/Ops
+*** vMAC
+*** PREEMPTION
+*** VERSION
+*** AUTHENTICATION
+*** TRACKING
+
+
+r1 and r2
+
+
+*** before...
+ 
+ASW1#ping 8.8.8.8 re 100
+Type escape sequence to abort.
+Sending 100, 100-byte ICMP Echos to 8.8.8.8, timeout is 2 seconds:
+......
+
+*** basic HSRP config...
+*** group deaults to 0
+*** prio defaults to 100
+
+r1...
+
+en
+term length 40
+conf t
+int g0/0
+standby ip 10.10.100.1
+do wr
+
+r2...
+
+en
+term length 40
+conf t
+int g0/1
+standby ip 10.10.100.1
+do wr
+
+verify...
+
+*** each router transitions through states... to ultimate steady active/standby
+do sh stan br
+
+disabled
+init
+backup
+listen
+speak
+standby
+active
+
+hellos - 3 seconds
+224.0.0.2
+UDP 1985 src and dst
+
+*** prio 100 default, we see highest ip in group win active election
+
+ASW1#ping 8.8.8.8 re 100
+Type escape sequence to abort.
+Sending 100, 100-byte ICMP Echos to 8.8.8.8, timeout is 2 seconds:
+......!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+Success rate is 94 percent (94/100), round-trip min/avg/max = 1/14/1001 ms
+
+ASW1#sh arp
+Protocol  Address          Age (min)  Hardware Addr   Type   Interface
+Internet  10.10.100.1             0   0000.0c07.ac00  ARPA   Vlan10
+Internet  10.10.100.12            -   ece1.a968.8641  ARPA   Vlan10
+
+verify...
+
+ASW1#traceroute 8.8.8.8
+Type escape sequence to abort.
+Tracing the route to 8.8.8.8
+VRF info: (vrf in name/id, vrf out name/id)
+  1 10.10.100.3 0 msec 0 msec 0 msec
+  2 10.10.3.1 0 msec 5 msec 0 msec
+  3 10.10.2.1 5 msec *  0 msec
+
+*** HSRP Virtual MAC...
+0000.0c07.ac00
+0000.0c - OUI
+07.acxx - HSRPv1 (07.ac..) group id in last byte xx - 0-255 2^8
+
+no standby 0 ip 10.10.100.1
+standby 100 ip 10.10.100.1
+
+https://calc.penjee.com/
+
+*** setting higher prio only helps when initializing interface or
+
+r1...
+
+en
+conf t
+interface GigabitEthernet0/0
+ standby 100 priority 101
+...wait....nothing changed...
+shut
+
+r2...
+
+en
+conf t
+interface GigabitEthernet0/1
+...wait...
+shut
+
+*** now no shut both... R2 FIRST just to prove that the previous active isn't active if it's enabled first....
+
+verify...
+
+ASW1#traceroute 8.8.8.8
+Type escape sequence to abort.
+Tracing the route to 8.8.8.8
+VRF info: (vrf in name/id, vrf out name/id)
+  1 10.10.100.2 0 msec 0 msec 5 msec
+  2 10.10.1.1 0 msec *  0 msec
+
+*** PREEMPTION
+
+add an "anti-flap/thrash" timer... as you don't want your active router transition back and forth because of a momentary glitch
+
+*** doens't do anything until priority causes it to
+
+standby 100 preempt delay minimum 15
+
+....watch, no change...
+
+do sh stand br
+do sh stand
+
+asw1... traceroute 8.8.8.8
+
+r1... 
+standby 100 priority 101
+
+do sh stan | in Preem
+
+...now change happens...
+
+asw1... traceroute 8.8.8.8
+
+*** VERSION
+v1 - default
+v2 - adds 0-4095 (0000.0c9f.fxxx) groups, millisecond timers, 224.0.0.102
+
+...before/after 
+do sh ip int g0/0 | in group
+
+standby version 2
+
+...causes hsrp to reinitialize and change it's v-mac
+
+asw1....
+ping 8.8.8.8 re 10
+sh arp
+
+*** AUTHENTICATION
+
+do r2 first...
+
+standby 100 authentication md5 key-string cisco123
+
+...will see broken hsrp and...
+%HSRP-4-BADAUTH2: Bad authentication from 10.10.100.3
+
+...side note, incase you don't want clear pwd on screen...
+do sh run int g0/1
+do sh run | in service
+exit
+service password-encryption
+do sh run | in service
+do sh run int g0/1
+
+....once auth eabled on r1, preempt back to normal...
+
+
+*** TRACKING
+
+older IOS tracked on an interface up/down state...
+newer IOS tracks on an Object number... ("enhanced object tracking")
+
+en
+conf t
+track 1 interface f0/0/0 line-protocol
+interface GigabitEthernet0/0
+ standby 100 track 1 decrement 10
+
+verify...
+do sh stan | in Track
+do sh track
+
+test... 
+ISP-A...
+en
+conf t
+int f0/3/0
+shut
+
+...verify on asw and r1/2
+
+...restore outage...
+
+*** not good if ospf takes a while to neighbor up and converge...
+*** TUNE PRE-EMPTION DELAY WITH other dependancies 
+
+asw1 - outage...
+
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!.U.U.U.U.U.U.U.U.U.U.U.U.U.U
+.U.U.U.U.U.U.U.U.U.U.U.U.U.U.!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+observe time for protocol to go up and ospf to go FULL.... about 70 seconds what i saw....
+
+and when we change preemption delay we shift the problem to the initial failover to standby router to be 70 seconds at the beginning of outage, instead of the restoration of the outage.... 
+
+...but, this works....
+...keep the preempt timer at 15....
+...run ospf on the LAN with cost high to avoid transit traffic during normal operations....
+...however it allows for continued forwarding transparent to the customer for the time of the failover and restoration....
+
+r1...
+en
+conf t
+router ospf 1
+no passive-interface GigabitEthernet0/0
+int g0/0
+ip osp cost 1000
+
+r2...
+en
+conf t
+router ospf 1
+no passive-interface GigabitEthernet0/1
+int g0/1
+ip osp cost 1000
+
+do sh ip ospf ne
+
+isp_a
+int f0/3/0
+shut
+
+*** watch asw1 pings and trace during outage and restoration...
+
+*** watch on r1...
+do sh ip ro | in net0/0$
+do sh ip os ne

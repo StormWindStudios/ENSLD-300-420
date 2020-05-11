@@ -1,0 +1,117 @@
+
+let's scale up our ospf environment for Company A as it's grown significantly...
+
+r1... 
+sh ip ro osp
+
+....dsw1 ABR...
+
+en
+conf t
+int l 1
+ip address 1.228.1.1 255.255.255.0 sec
+ip address 1.230.1.1 255.255.255.0 sec
+ip address 1.232.1.1 255.255.255.0 sec
+ip address 1.240.1.1 255.255.255.0 sec
+ip address 1.245.1.1 255.255.255.0 sec
+ip address 1.247.1.1 255.255.255.0 sec
+ip address 1.248.1.1 255.255.255.0 sec
+ip address 1.250.1.1 255.255.255.0 sec
+ip address 1.253.1.1 255.255.255.0 sec
+ip address 1.254.1.1 255.255.255.0 sec
+
+router ospf 1
+network 1.0.0.0 0.255.255.255 area 1
+
+results....
+r1...
+sh ip ro os
+
+...too many, lsdp is getting too large...
+
+summary exercise...
+
+1.228.1.0/24
+1.230.1.0/24
+1.232.1.0/24
+1.240.1.0/24
+1.245.1.0/24
+1.247.1.0/24
+1.248.1.0/24
+1.250.1.0/24
+1.253.1.0/24
+1.254.1.0/24
+
+...you can only summarize on common bits...
+(run through bit break out of 2nd octet
+
+128 64 32 16 8 4 2 1
+  1  1  1  0 0 1 0 0 - 228
+  1  1  1  0 0 1 1 0 - 230
+  1  1  1  0 1 0 0 0 - 232
+  1  1  1  1 0 0 0 0 - 240
+  1  1  1  1 0 1 0 1 - 245
+  1  1  1  1 0 1 1 1 - 247
+  1  1  1  1 1 0 0 0 - 248
+  1  1  1  1 1 0 1 0 - 250
+  1  1  1  1 1 1 0 1 - 253
+  1  1  1  1 1 1 1 1 - 254
+
+
+(notes further down)
+(bare in mind summaries do carry with them routing for other perhaps unknown subnets, explain, more specifics are more absolute of what is there and what is not)
+
+
+...results...
+r1... (if fast enough you can see ospf lsa max age 3600)
+sh ip osp database
+sh ip ro os
+
+
+ASW2#ping 1.228.1.1 source 2.0.4.2
+
+Type escape sequence to abort.
+Sending 5, 100-byte ICMP Echos to 1.228.1.1, timeout is 2 seconds:
+Packet sent with a source address of 2.0.4.2
+!!!!!
+Success rate is 100 percent (5/5), round-trip min/avg/max = 1/5/10 ms
+ASW2#
+
+
+ASW2#ping 1.240.1.1 source 2.0.4.2
+
+Type escape sequence to abort.
+Sending 5, 100-byte ICMP Echos to 1.240.1.1, timeout is 2 seconds:
+Packet sent with a source address of 2.0.4.2
+!!!!!
+Success rate is 100 percent (5
+
+----------------------------------------
+(summary notes)
+
+128 64 32 16 8 4 2 1
+  1  1  1  0 0 1 0 0 - 228
+  1  1  1  0 0 1 1 0 - 230
+  1  1  1  0 1 0 0 0 - 232
+  1  1  1  1 0 0 0 0 - 240
+  1  1  1  1 0 1 0 1 - 245
+  1  1  1  1 0 1 1 1 - 247
+  1  1  1  1 1 0 0 0 - 248
+  1  1  1  1 1 0 1 0 - 250
+  1  1  1  1 1 1 0 1 - 253
+  1  1  1  1 1 1 1 1 - 254
+
+...you can only summarize on common bit boundaries...
+
+128+62+32=224
+
+1.224.0.0/11
+255.224.0.0
+
+...dsw1 abr perform summarization...
+
+en
+conf t
+router ospf 1
+area 1 range 1.224.0.0 255.224.0.0
+do wr

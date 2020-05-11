@@ -1,0 +1,257 @@
+
+
+Module 7 – Automation – Lab Demonstration
+
+Cisco DevNet YANG-Explorer Installation...
+
+I installed on Ubuntu
+
+https://developer.cisco.com/codeexchange/github/repo/CiscoDevNet/yang-explorer 
+
+https://github.com/CiscoDevNet/yang-explorer/wiki 
+
+https://stackoverflow.com/questions/14426491/python-3-importerror-no-module-named-setuptools 
+
+once installed, here’s the link to browse to it locally…
+http://localhost:8088/static/YangExplorer.html
+Chrome blocks plugin/popup for flash….manage…     change to Ask First…. restart chrome after flash downloads…
+-----------------------------------------------------------------------------------
+
+YANG-Explorer Configuration with Cisco DevNet Sandbox Routers…
+
+Cisco’s DevNet Routers…
+
+IOS XE - csr1000v
+https://devnetsandbox.cisco.com/RM/Diagram/Index/27d9747a-db48-4565-8d44-df318fce37ad?diagramType=Topology
+
+IOS XE – csr1000v – latest
+https://devnetsandbox.cisco.com/RM/Diagram/Index/38ded1f0-16ce-43f2-8df5-43a40ebf752e?diagramType=Topology
+
+IOS XR – Xrv
+https://devnetsandbox.cisco.com/RM/Diagram/Index/e83cfd31-ade3-4e15-91d6-3118b867a0dd?diagramType=Topology
+
+
+Let’s use the IOS XE – csr1000v
+
+CSR1000V Host: ios-xe-mgmt.cisco.com - 64.103.37.51
+SSH Port: 8181
+NETCONF Port: 10000
+RESTCONF Ports: 9443 (HTTPS)
+Username: developer
+Password: C1sco12345
+
+Step 1 – Test Netconf Connectivity from SSH CLI
+
+ssh developer@ios-xe-mgmt.cisco.com -p 10000
+
+- good hello and capabilities exchange ?
+
+- you will see all the supported yang models (ietf, openconfig, native)
+
+Step 2 - Test Netconf Connectivity from Yang-Explorer
+- login, top right corner, admin/admin or guest/guest
+
+--- as guest you have default access to a couple IETF models in the Explorer pane
+
+- middle pane tabs are hard to see when selected, select Build and Device Settings
+
+- Platform – select appropriately (csr) or “other” works also
+
+- Host – ios-xe-mgmt.cisco.com (or 64.103.37.51)
+
+- Port – 10000
+
+- developer – username
+
+- C1sco12345 - password
+
+- Click Capabilities
+
+- good hello and capabilities exchange ?
+
+- you will see all the supported yang models (ietf, openconfig, native)
+
+- now we know the Yang-Explorer is passing Netconf/YANG to DevNet Router
+
+
+Step 3 – Query device using default IETF YANG models
+
+- continuing from Step 2…
+
+- logged in as guest
+
+- See Explorer Pane, left side
+
+- Drop Down ietf-interfaces…interfaces...interface...description
+
+- See Values column… click next to description and select <get>
+
+- click Run
+
+Note – if you haven’t selected the correct objects/values you will get the pop-up message “RPC – Tree is empty, please populate tree to generate RPC !!”
+
+- if you have an error/or lack of response, ensure that Platform is still crs/other
+
+- notice we did not have to Select radio buttons for Config or Oper
+
+- this output can be verified on IOS XE as “show interface description”
+
+Step 3.1 – YANG Model Query to only desired interface
+
+- continuing from Step 3…
+
+- CAUTION – I would advise against testing with interfaces that are used for actual network connectivity to/from this DevNet sandbox router… evaluate the routing table to see how this router is connected.  (sh ip ro… shows G1 is used to default out)
+
+- in the name key, input one of the actual interface names of the router… you can find this with “sh interfaces | in line proto” as you need Full Interface name, not the abbreviated interface name.
+
+- GigabitEthernet3 seems safe as it is currently admin’d down
+
+- In Explorer/Values cells for name and description you should have …
+--- GigabitEthernet3
+--- <get-config>
+--- radio button Oper
+--- click Run
+--- you should see output for Description only
+
+Note – you can click “Clear” in the middle pane to clear the output from previous query
+
+--- in the “type” leaf select <get-config>
+--- click Run
+--- you should see output for Description and Type
+
+--- in the “enabled” leaf select <get-config>
+--- click Run
+--- you should see output for Description, Type and enabled status
+
+--- remove <get-config> from all leafs, but leave the name field for GigabitEthernet3
+--- click Run
+--- you should see output for the entire interface
+--- verify with IOS XE CLI command “show run interface g3”
+
+
+Observations…
+
+- you get focused or expanded view of configuration depending on what you ask for
+
+- some items, like enabled status are in a different form than the typical “shut/no shut” that we’ve grown familiar with in the native cli… in this case shutdown=false
+
+- when comparing “show run int g3” with YANG output, we don’t get the full interface output using this IETF model
+
+Step 4 – Configuring device using default IETF YANG models
+
+- continuing from Step 3.1…
+
+- with only GigabitEthernet3 selected
+
+- try adding a description
+
+- selected radio button “Config”
+
+- click Run
+
+- you will see output stating “Unsupported capability :writable-running”
+
+Observation – some of these items aren’t working for configuration
+
+Step 5 – Adding Devices permanently into YANG-Explorer
+
+- on the same screen shown with tabs Build and Device Settings…
+
+- select “Create device profile”
+
+- name – whatever you want
+
+- device – appropriate type (csr)
+
+- user – guest (or whichever you prefer to map this to)
+
+- NetConf IP – 64.103.37.51 – must use IP address as it truncates DNS name
+
+- NetConf Port – 10000
+
+- NetConf Username - developer
+
+- NetConf Password – C1sco12345
+
+- Decription – must have a description
+
+- click save
+
+- click “View Site” top right area… you can close the other previous tab now
+
+- Now on main page, under tabs Build and Device Settings…
+- select Profile drop down… you will see your previously configured device profile
+
+- select that profile and it will populate all the fields
+
+Step 6 – Pulling down YANG Models from server (network device)
+
+- select tabs Manage Models and Device…
+
+- Select Device Profile…
+
+- once you pick your device, (watch the clock cursor) it will download all YANG Models from the network devices.  This is IOS XE version dependent.
+
+- 444 yang models for this IOS XE version running on this csr1000v
+
+- verify version from router cli “sh ver | in IOS” - Cisco IOS XE Version 16.09.03
+
+- you may need to adjust window pane sizes to see slide bar for up/down browsing
+
+Note – if you select all of them it may take a while.  I’m unsure of the stress on the device.
+
+- select the ones you would like to download into the management client (yang-explorer)
+
+- click Sync, status is shown with Clock cursor
+
+- watch status with the following...
+
+– monitoring netconf-yang sessions from the router’s perspective…
+sh netconf-yang sessions
+sh netconf-yang sessions details
+sh netconf-yang statistic
+
+- watching the yang-explorer server window (cli)
+
+
+NOTE – if there is a problem/conflict with models being downloaded it will halt all other models from being downloaded.  It seems that the guest accounts default IETF models may create a conflict.  Login as ADMIN which has no pre-existing models, then try again.
+
+- once done, the Schema-download window will display each YANG model and it’s status…uploaded, compiling, compiled…
+
+- Now you will see all downloaded YANG models.  Select the ones (or all) to be subscribed to.
+
+- It will populate in the Explorer left pane
+
+
+IOS XE commands…
+
+sh run | in yang
+sh netconf session    		<---- might be the old version
+sh netconf-yang session
+sh platform software yang-management process
+
+
+XRv commands...
+config..
+ssh server capability netconf-xml
+ssh server netconf vrf default
+monitor...
+
+sh netconf-yang capabilities
+sh netconf-yang capabilities raw
+sh netconf-yang trace ?
+
+
+another tool... ncclient on github...
+(python tool netconf client side for interactive with netconf server (network device))
+https://github.com/ncclient/ncclient
+https://ncclient.readthedocs.io/en/latest/
+
+More YANG-Explorer instructions...
+https://www.cisco.com/c/en/us/support/docs/storage-networking/management/200933-YANG-NETCONF-Configuration-Validation.html
+
+
+
+
+
+

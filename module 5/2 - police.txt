@@ -1,0 +1,229 @@
+*** circle back on the multicast statement on the tunnel interfaces... adding one more of those on r1 and r2 allow them to ospf neighbor directly.... even though it's not needed for the shortcut spoke to spoke auto tunnel, it does allow more control plane logic to exist between spokes, such that if the ospf control plane had issues on the dmvpn hub router, it would now not affect r1 and r2 ability to maintain ospf states....
+
+* scenario is, wan provider is selling 1 mbps of service to Company A at Site 1
+
+* 1 mbps seems small but, it's only because I need small scale to simulate qos in the lab
+
+* if we had a traffic generator that could simulate 100 mbps or 1 gbps, then we could scale up our qos tools
+
+* but the concepts remain the same
+
+ISP_A side... provider would be rate limiting your traffic per what you buy...
+
+* using MQC style QoS toolset...
+- class-map
+- policy-map
+- service-policy
+* nothing until it's attached to interface
+* show what we can match on
+* show what we can police on
+* mention where to apply it, as ISP has phy int with vlan and then L3 SVI...
+* try phy int first...
+
+* FIRST, ping from site 1 to main site
+* big packet size to generate some traffic...
+
+asw1...
+ping 192.168.20.1 re 100000000 size 10000
+
+* on ISP_A verify rate before and after...
+sh int f0/3/0 | in 5 min
+
+en
+conf t
+
+class-map match-all my-policer
+ match protocol ip
+
+policy-map my-policer
+ class my-policer
+  police 1000000
+
+interface FastEthernet0/3/0
+ service-policy input my-policer
+
+ISP_A(config-if)# service-policy input my-policer
+%Error: FastEthernet0/3/0 Service Policy Configuration Failed.Only Match with access group is supported
+
+* access-group ?  acl attached to class-map
+* try again
+
+----- 2nd try -----------
+access-list 1 permit any
+
+class-map match-all my-policer
+ match access-group 1
+
+interface FastEthernet0/3/0
+ service-policy input my-policer
+
+%Error: FastEthernet0/3/0 Service Policy Configuration Failed.Only Match with access group is supported
+
+* we used access-group...
+do sh run | sec class-map
+* FIX, remove previous protocol ip....
+
+class-map match-all my-policer
+no match protocol ip
+do sh run | sec class-map
+
+------ 3rd try ---------------
+interface FastEthernet0/3/0
+ service-policy input my-policer
+
+%Error: Service policy cannot be supported -
+Rules required exceed available resources in ASIC.
+
+* back to the drawing board... 
+* we know that this connection for SITE 1 is provided via f0/3/0
+* ...but we also know it's a vlan, routed at L3 SVI Vlan101
+* try there
+* ASW 1 still pining ?
+
+------- 4th try ----------------
+interface Vlan101
+ service-policy input my-policer
+
+* WORKS !
+* NOW that traffic is viloating (exceeding contract)
+* pings dropping on ASW1
+* on IPS_A
+sh policy-map int vlan 101
+
+
+
+
+
+**** DEMONSTRATE TTCP...  (TCP TEST UTILITY, built into some cisco platforms)
+
+
+dsw1#
+dsw1#ttcp
+transmit or receive [receive]: t
+Target IP address: 192.168.20.1
+perform tcp half close [n]:
+send buflen [8192]:
+send nbuf [2048]:
+bufalign [16384]:
+bufoffset [0]:
+port [5001]:
+sinkmode [y]:
+buffering on writes [y]:
+show tcp information at end [n]: y
+
+ttcp-t: buflen=8192, nbuf=2048, align=16384/0, port=5001  tcp  -> 192.168.20.1
+ttcp-t: connect
+ttcp-t: 16777216 bytes in 28379 ms (28.379 real seconds) (~577 kB/s) +++
+ttcp-t: 2048 I/O calls
+ttcp-t: 0 sleeps (0 ms total) (0 ms average)
+Connection state is ESTAB, I/O status: 1, unread input bytes: 0
+Connection is ECN Disabled, Mininum incoming TTL 0, Outgoing TTL 255
+Local host: 192.168.10.2, Local port: 42660
+Foreign host: 192.168.20.1, Foreign port: 5001
+Connection tableid (VRF): 0
+Maximum output segment queue size: 50
+
+Enqueued packets for retransmit: 6, input: 0  mis-ordered: 0 (0 bytes)
+
+Event Timers (current time is 0xC99D52D2):
+Timer          Starts    Wakeups            Next
+Retrans         30661          0             0x0
+TimeWait            0          0             0x0
+AckHold             1          0             0x0
+SendWnd             0          0             0x0
+KeepAlive           0          0             0x0
+GiveUp              0          0             0x0
+PmtuAger            0          0             0x0
+DeadWait            0          0             0x0
+Linger              0          0             0x0
+ProcessQ            0          0             0x0
+
+iss: 2325982364  snduna: 2342759581  sndnxt: 2342759581
+irs: 4134533600  rcvnxt: 4134533601
+
+sndwnd:   3976  scale:      0  maxrcvwnd:   4128
+rcvwnd:   4128  scale:      0  delrcvwnd:      0
+
+SRTT: 1000 ms, RTTO: 1003 ms, RTV: 3 ms, KRTT: 0 ms
+minRTT: 0 ms, maxRTT: 1000 ms, ACK hold: 200 ms
+uptime: 29562 ms, Sent idletime: 1174 ms, Receive idletime: 1174 ms
+Status Flags: active open
+Option Flags: Retrans timeout
+IP Precedence value : 0
+
+Datagrams (max data segment is 536 bytes):
+Rcvd: 32830 (out of order: 0), with data: 0, total data bytes: 0
+Sent: 32770 (retransmit: 0, fastretransmit: 0, partialack: 0, Second Congestion: 0), with data: 32768, total data bytes: 16777216
+
+ Packets received in fast path: 0, fast processed: 0, slow path: 0
+ fast lock acquisition failures: 0, slow path: 0
+TCP Semaphore      0x076B8360  FREE
+dsw1#
+
+
+
+
+
+BranchA#ttcp
+transmit or receive [receive]:
+perform tcp half close [n]:
+receive buflen [8192]:
+bufalign [16384]:
+bufoffset [0]:
+port [5001]:
+sinkmode [y]:
+rcvwndsize [4128]:
+delayed ACK [y]:
+show tcp information at end [n]: y
+
+ttcp-r: buflen=8192, align=16384/0, port=5001
+rcvwndsize=4128, delayedack=yes  tcp
+ttcp-r: accept from 192.168.10.2
+ttcp-r: 16777216 bytes in 31500 ms (31.500 real seconds) (~519 kB/s)+++
+ttcp-r: 31368 I/O calls
+ttcp-r: 0 sleeps (0 ms total) (0 ms average)
+Connection state is CLOSEWAIT, I/O status: 1, unread input bytes: 0
+Connection is ECN Disabled, Mininum incoming TTL 0, Outgoing TTL 255
+Local host: 192.168.20.1, Local port: 5001
+Foreign host: 192.168.10.2, Foreign port: 43093
+Connection tableid (VRF): 0
+Maximum output segment queue size: 20
+
+Enqueued packets for retransmit: 0, input: 0  mis-ordered: 0 (0 bytes)
+
+Event Timers (current time is 0xFA0E573C):
+Timer          Starts    Wakeups            Next
+Retrans             1          0             0x0
+TimeWait            0          0             0x0
+AckHold         30660          0             0x0
+SendWnd             0          0             0x0
+KeepAlive       32770          0             0x0
+GiveUp              0          0             0x0
+PmtuAger            0          0             0x0
+DeadWait            0          0             0x0
+Linger              0          0             0x0
+ProcessQ            0          0             0x0
+
+iss: 3939516038  snduna: 3939516039  sndnxt: 3939516039
+irs:  444543177  rcvnxt:  461320395
+
+sndwnd:   4128  scale:      0  maxrcvwnd:   4128
+rcvwnd:   3976  scale:      0  delrcvwnd:    152
+
+SRTT: 125 ms, RTTO: 2625 ms, RTV: 2500 ms, KRTT: 0 ms
+minRTT: 4 ms, maxRTT: 1000 ms, ACK hold: 200 ms
+uptime: 32676 ms, Sent idletime: 1172 ms, Receive idletime: 1172 ms
+Status Flags: passive open, gen tcbs
+Option Flags: Retrans timeout
+IP Precedence value : 0
+
+Datagrams (max data segment is 536 bytes):
+Rcvd: 32771 (out of order: 0), with data: 32768, total data bytes: 16777216
+Sent: 32831 (retransmit: 0, fastretransmit: 0, partialack: 0, Second Congestion: 0), with data: 0, total data bytes: 0
+
+ Packets received in fast path: 0, fast processed: 0, slow path: 0
+ fast lock acquisition failures: 0, slow path: 0
+TCP Semaphore      0x3F4CD164  FREE
+
+
+

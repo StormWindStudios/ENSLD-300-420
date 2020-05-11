@@ -1,0 +1,40 @@
+
+*** best practice, have spanning tree root bride be HSRP ACTIVE
+
+*** evaluate where is root for vlan 10
+
+...on all switches...
+sh span vl 10
+
+*** compare root bridge prio's and mac's
+*** ext sysid vlan+32768
+
+*** we see 2 blocked loops... 
+
+ASW1 and 2 block towards DSW1 and DSW1 connects uplink to R1, HSRP ACTIVE
+
+
+...on asw1 and 2...
+ping 8.8.8.8
+show arp 
+sh mac address-table address 0000.0c9f.f064
+sh cdp ne
+
+
+*** Fix, dsw1 root pri, dsw2 root sec
+
+dsw1...
+en
+conf t
+spanning-tree vlan 10 root primary
+
+do sh run | in spanning-tree vlan 10
+
+
+dsw2...
+en
+conf t
+spanning-tree vlan 10 root sec
+
+do sh run | in spanning-tree vlan 10
+

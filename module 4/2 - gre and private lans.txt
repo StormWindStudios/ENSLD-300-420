@@ -1,0 +1,188 @@
+gre - generic routing encapsulation
+
+scenario is, we have a company with 2 sites that wants to privately connect over the wan using a GRE tunnel
+
+first, prep the local LAN/Router/Switch prior to configuring the tunnel...
+some of this should be familiar now as it's basic ospf and ip configs...
+
+Company A site 1..............
+
+r1...
+
+en
+term length 40
+conf t
+int lo1
+ip addr 192.168.1.1 255.255.255.255
+default int g0/0
+int g0/0
+no shut
+ip addre 192.168.10.1 255.255.255.0
+router ospf 1
+network 192.168.1.1 0.0.0.0 area 0
+network 192.168.10.1 0.0.0.0 area 0
+do wr
+
+dsw1....
+
+en
+term length 40
+conf t
+ip routing
+vtp mode transparent
+no vlan 2-1001
+no vlan 1006-4094
+alias exec ib sh ip int br
+int vlan 1
+shut
+int f0
+shut
+default int g1/0/13
+interface GigabitEthernet1/0/13
+ no switchport
+ip addr 192.168.10.2 255.255.255.0
+no shut
+int g1/0/14
+shut
+int range g1/0/17 - 24
+shut
+router ospf 1
+network 0.0.0.0 255.255.255.255 area 0
+passive f0
+do wr
+
+verify...
+sh ip ospf ne
+on dsw1 ping r1's loopack 
+
+
+Company A site 2..............
+
+r2...
+
+en
+term length 40
+conf t
+int lo1
+ip addr 192.168.3.1 255.255.255.255
+default int g0/1
+int g0/1
+no shut
+ip addre 192.168.30.1 255.255.255.0
+router ospf 1
+network 192.168.3.1 0.0.0.0 area 0
+network 192.168.30.1 0.0.0.0 area 0
+do wr
+
+dsw2....
+
+en
+term length 40
+conf t
+ip routing
+vtp mode transparent
+no vlan 2-1001
+no vlan 1006-4094
+alias exec ib sh ip int br
+int vlan 1
+shut
+int f0
+shut
+default int g1/0/14
+interface GigabitEthernet1/0/14
+ no switchport
+ip addr 192.168.30.2 255.255.255.0
+no shut
+int g1/0/13
+shut
+int range g1/0/17 - 24
+shut
+router ospf 1
+network 0.0.0.0 255.255.255.255 area 0
+passive f0
+do wr
+
+verify...
+sh ip ospf ne
+on dsw2 ping r2's loopack 
+
+funny what you find when you mistype the order of a command !  another hidden command... like ISIS shows a rib/protocol specific display of the table.... here's one for ospf
+
+sh ip ospf route
+
+So now we have local ospf running at each site
+but we now need tunnel and ospf running between the sites over the tunnel for full end to end reachability
+
+-----------------------------
+
+GRE tunnel...
+
+before from dsw1 get dsw2 ip and ping it....
+
+r1...
+
+en
+conf t
+interface Tunnel1
+ip address 192.168.0.1 255.255.255.252
+ip mtu 1400
+ip tcp adjust-mss 1360
+tunnel source 10.10.1.2
+tunnel destination 10.10.3.2
+router ospf 1
+ network 192.168.0.1 0.0.0.0 area 0
+do wr
+
+r2...
+
+en
+conf t
+interface Tunnel1
+ip address 192.168.0.2 255.255.255.252
+ip mtu 1400
+ip tcp adjust-mss 1360
+tunnel source 10.10.3.2
+tunnel destination 10.10.1.2
+router ospf 1
+ network 192.168.0.2 0.0.0.0 area 0
+do wr
+
+verify...
+
+on r1 and r2 see ospf neighor now with remote via tunnel
+ 
+sh int tun 1
+...see source/dest gre/ip
+
+sh int tun 1 | in protocol|packet
+cle counters...
+
+ping end to end from dsw1 to dsw2...
+
+ping 192.168.30.2 re 100
+
+interesting that traceroute hides hops as tracroute packets are hidden inside tunnel....
+
+DSW1#traceroute 192.168.30.2
+Type escape sequence to abort.
+Tracing the route to 192.168.30.2
+VRF info: (vrf in name/id, vrf out name/id)
+  1 192.168.10.1 0 msec 0 msec 9 msec
+  2 192.168.0.2 0 msec 0 msec 0 msec
+  3 192.168.30.2 8 msec *  0 msec
+
+- local def gw
+- remote tunnel egress
+- destination device
+
+..... DELETE TUNNEL FOR PREP FOR DMVPN LAB DEMO NEXT...
+
+r1 and r2...
+
+en
+conf t
+no int tun 1
+router ospf 1
+no network 192.168.0.1 0.0.0.0 area 0
+no network 192.168.0.2 0.0.0.0 area 0
+do wr

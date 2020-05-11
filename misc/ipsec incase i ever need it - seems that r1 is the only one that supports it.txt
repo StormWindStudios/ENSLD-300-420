@@ -1,0 +1,72 @@
+r1...
+
+en
+conf t
+crypto ipsec transform-set my-transform-set esp-des esp-md5-hmac
+
+crypto isakmp policy 10
+hash md5
+authentication pre-share
+group 2
+encryption 3des
+exit
+
+crypto isakmp key cisco address 10.10.3.2
+
+access-list 100 permit ip 192.168.10.0 0.0.0.255 192.168.30.0 0.0.0.255
+
+crypto map my-crypto-map 10 ipsec-isakmp
+set peer 10.10.3.2
+match address 100
+set transform-set my-transform-set
+
+
+int f0/0/0
+crypto map my-crypto-map
+
+----------------------------------------
+
+r2...
+
+en
+conf t
+crypto ipsec transform-set my-transform-set esp-des esp-md5-hmac
+
+crypto isakmp policy 10
+hash md5
+authentication pre-share
+group 2
+encryption 3des
+exit
+
+crypto isakmp key cisco address 10.10.1.2
+
+access-list 100 permit ip 192.168.30.0 0.0.0.255 192.168.10.0 0.0.0.255
+
+crypto map my-crypto-map 10 ipsec-isakmp
+set peer 10.10.1.2
+match address 100
+set transform-set my-transform-set
+
+int f0/0/0
+crypto map my-crypto-map
+
+
+
+------------------------------------
+
+removing from r1...
+
+
+en
+conf t
+int f0/0/0
+no crypto map my-crypto-map
+no crypto map my-crypto-map 10 ipsec-isakmp
+no crypto isakmp policy 10
+no crypto isakmp key cisco address 10.10.3.2
+no crypto ipsec transform-set my-transform-set esp-des esp-md5-hmac
+no access-list 100 permit ip 192.168.10.0 0.0.0.255 192.168.30.0 0.0.0.255
+
+
+

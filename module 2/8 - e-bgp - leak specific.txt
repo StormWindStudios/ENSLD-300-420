@@ -1,0 +1,33 @@
+we want to leak 1.0.2.0/24....
+
+...before...
+
+ip prefix-list my-prefixlist-out seq 1 permit 1.0.0.0/8
+ip prefix-list my-prefixlist-out seq 100 deny 0.0.0.0/0 le 32
+
+...after...
+do sh ip prefix-list de
+
+ip prefix-list my-prefixlist-out seq 1 permit 1.0.0.0/8
+ip prefix-list my-prefixlist-out seq 2 permit 1.0.2.0/24
+ip prefix-list my-prefixlist-out seq 100 deny 0.0.0.0/0 le 32
+
+do sh ip prefix-list de
+
+...before...
+
+router bgp 64512
+ aggregate-address 1.0.0.0 255.0.0.0 summary-only
+
+...after... REMOVING SUMMARY-ONLY, since we have it filtered we are ok...
+
+router bgp 64512
+ aggregate-address 1.0.0.0 255.0.0.0
+
+
+do sh ip prefix-list de
+
+do cle ip bgp 10.10.2.1
+
+do sh ip prefix-list de
+

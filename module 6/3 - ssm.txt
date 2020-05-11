@@ -1,0 +1,33 @@
+
+* ssm - NO RP
+* on LAN side multicast routers...
+* mcast source - DSW2
+* mcast receiver - Branch_A
+
+do...R2
+en
+conf t
+
+no ip pim ssm range 1
+no access-list 1 permit 239.0.0.0 0.255.255.255
+
+int f0/1/0
+no ip igmp version 3
+
+do...mcast receiver... BRANCH_A
+en
+conf t
+interface GigabitEthernet0/0
+no ip igmp join-group 239.255.1.1
+no ip igmp version 3
+no ip igmp join-group 239.255.1.1 source 10.1.6.2
+
+show on ISP_A and R1 that we see no route states
+sh ip mroute
+
+
+en
+conf t
+no ip pim rp-address 10.0.0.1
+
+cle ip mroute *

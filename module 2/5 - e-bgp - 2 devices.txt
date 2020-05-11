@@ -1,0 +1,119 @@
+r1----isp_a
+
+
+*** neighbor first....
+
+r1....
+
+en
+conf t
+router bgp 64512
+neighbor 10.10.2.1 remote-as 65535
+do wr
+
+isp_a...
+
+en
+conf t
+router bgp 65535
+neighbor 10.10.2.2 remote-as 64512
+do wr
+
+...no routes yet....
+verify...
+
+r1...
+sh ip bgp sum
+sh ip bgp neighbors 10.10.2.1 advertised-routes
+sh ip bgp neighbors 10.10.2.1 routes
+
+(same on isp_a but change neighbor ip)
+
+*** now advertise prefix...
+
+r1...
+
+en
+conf t
+router bgp 64512
+network 1.0.0.0
+
+(exact route must be in RIB (route table) in order for bgp to advertise it)
+
+...no route sent yet....
+
+exit
+
+ip route 1.0.0.0 255.0.0.0 null 0
+
+...route should be sent now....
+
+do wr
+
+isp_a...
+
+en
+conf t
+ip route 2.0.0.0 255.0.0.0 null 0
+router bgp 65535
+network 2.0.0.0
+
+.......the bgp to igp part....
+.... show bgp table.... show route table....
+
+sh ip bgp
+sh ip ro bgp
+
+....explain that bgp routes need to be redis'd into the igp...
+....pretty much true of any route learned from any routing protocol would need to be redis'd into the other...
+
+********************************************************
+r1...
+
+en
+conf t
+router ospf 1
+redistribute bgp 64512 metric 10
+do wr
+
+**********************************************************
+isp_a....
+
+en
+conf t
+router isis
+redistribute bgp 65535 metric 10
+do wr
+
+
+
+... results...
+
+r1...
+
+sh ip bgp su
+sh ip ro 1.0.0.0 255.0.0.0 longer-prefixes
+
+
+
+
+
+
+
+
+
+show this...(on the fly, works fine, no impact seen)
+
+(Default IPv4 Address-Family Enabled)
+router bgp 65100
+ neighbor 10.1.12.2 remote-as 65100
+
+(Default IPv4 Address-Family Disabled)
+router bgp 65100
+ no bgp default ipv4-unicast
+ neighbor 10.1.12.1 remote-as 65100
+ !
+ address-family ipv4
+  neighbor 10.1.12.1 activate
+ exit-address-family
+

@@ -1,0 +1,59 @@
+ISP_A & Branch A
+
+ISP_A....
+
+en
+conf t
+key chain my-isis-keychain
+key 1
+key-string cisco123
+
+int Vlan11
+isis authentication mode md5
+isis authentication key-chain my-isis-keychain
+
+
+verify...
+branch_a
+
+sh isis ne
+
+ASW2#ping 1.240.1.1 source 2.0.4.2 re 1000000
+.....
+
+
+...fix...
+
+Branch_A....
+
+en
+conf t
+key chain my-isis-keychain
+key 1
+key-string cisco123
+
+int g0/1
+isis authentication mode md5
+isis authentication key-chain my-isis-keychain
+
+--------------------------------------------
+bgp auth...
+
+r1...
+
+en
+conf t
+router bgp 64512
+neighbor 10.10.2.1 password cisco246
+
+do cle ip bgp 10.10.2.1
+
+...fix...
+ISP_A
+
+en
+conf t
+router bgp 65535
+ neighbor 10.10.2.2 password cisco246
+
+

@@ -1,0 +1,216 @@
+asw2...
+en
+conf t
+alias exec ib sh ip int br
+hostname asw2
+line con 0
+exec-time 240
+ip default-gate 1.1.1.2
+no ip domain-lookup
+int range g1/0/1 - 24
+shut
+int g1/0/14
+no sw
+ip addr 1.0.1.2 255.255.255.252
+no shut
+ip igmp join-group 239.128.239.239
+do wr
+
+
+dsw2....
+en
+conf t
+alias exec ib sh ip int br
+hostname dsw2
+line con 0
+exec-time 240
+ip default-gate 1.0.1.1
+no ip domain-lookup
+int range g1/0/1 - 24
+shut
+int g1/0/14
+no sw
+ip addr 1.0.1.2 255.255.255.252
+no shut
+ip igmp join-group 239.128.239.239
+do wr
+
+r2...
+
+en
+conf t
+line con 0
+exec-time 240
+ip multicast-routing
+ip pim rp-address 1.0.0.2
+no ip domain-lookup
+router ospf 1
+net 0.0.0.0 0.0.0.0 area 0
+int lo 0
+ip addre 1.0.0.2 255.255.255.255
+ip pim sparse-mode
+int g0/1
+ip pim sparse-mode
+ip addr 1.0.1.1 255.255.255.252
+no shut
+int f0/1/0
+ip pim sparse-mode
+ip addr 1.0.1.6 255.255.255.252
+no shut
+do wr
+
+branch a...
+
+en
+conf t
+line con 0
+exec-time 240
+ip multicast-routing
+ip pim rp-address 1.0.0.2
+no ip domain-lookup
+router ospf 1
+net 0.0.0.0 0.0.0.0 area 0
+passive-interface g0/1
+int lo 0
+ip addre 1.0.0.1 255.255.255.255
+ip pim sparse-mode
+int g0/0
+ip pim sparse-mode
+ip addr 1.0.1.5 255.255.255.252
+no shut
+int g0/1
+ip addr 100.0.0.2 255.255.255.252
+no shut
+ip route 1.0.0.0 255.0.0.0 null 0
+router bgp 64512
+neighbor 100.0.0.1 remote-as 64513
+network 1.0.0.0 mask 255.0.0.0
+exit
+ip route 1.0.0.0 255.0.0.0 Null0
+router ospf 1
+redistribute bgp 64512 metric 10
+do wr
+
+isp a...
+
+en
+conf t
+line con 0
+exec-time 240
+ip multicast-routing
+ip pim rp-address 2.0.0.2
+no ip domain-lookup
+router ospf 1
+net 0.0.0.0 0.0.0.0 area 0
+passive-interface f0/3/2
+int lo 0
+ip addre 2.0.0.1 255.255.255.255
+ip pim sparse-mode
+exit
+vlan 10
+vlan 11
+int f0/3/0
+sw ac vl 11
+int vl 11
+no shut
+ip pim sparse-mode
+ip addr 2.0.1.5 255.255.255.252
+int f0/3/2
+sw ac vl 10
+int vl 10
+ip addr 100.0.0.1 255.255.255.252
+no shut
+ip route 2.0.0.0 255.0.0.0 null 0
+router bgp 64513
+neighbor 100.0.0.2 remote-as 64512
+network 2.0.0.0 mask 255.0.0.0
+router bgp 64513
+ network 2.0.0.0
+ neighbor 100.0.0.2 remote-as 64512
+exit
+ip route 2.0.0.0 255.0.0.0 Null0
+router ospf 1
+redistribute bgp 64513 metric 10
+do wr
+
+r1...
+
+en
+conf t
+line con 0
+exec-time 240
+ip multicast-routing
+ip pim rp-address 2.0.0.2
+no ip domain-lookup
+router ospf 1
+net 0.0.0.0 0.0.0.0 area 0
+int lo 0
+ip addre 2.0.0.2 255.255.255.255
+ip pim sparse-mode
+int f0/0/0
+ip pim sparse-mode
+ip addr 2.0.1.6 255.255.255.252
+no shut
+int g0/0
+ip pim sparse-mode
+ip addr 2.0.1.1 255.255.255.252
+no shut
+do wr
+
+dsw1....
+
+en
+conf t
+line con 0
+exec-time 240
+ip default-gate 2.0.1.1
+no ip domain-lookup
+int range g1/0/1 - 24
+shut
+int g1/0/13
+no sw
+ip addr 2.0.1.2 255.255.255.252
+no shut
+ip igmp join-group 239.128.239.239
+do wr
+
+added...
+conf t
+alias exec ib sh ip int br
+exit
+wr
+
+----------------------------
+now msdp...
+
+AS 64512 - RP r2 - 1.0.0.2
+AS 64513 - RP r1 - 2.0.0.2
+
+r2...
+conf t
+ip msdp peer 2.0.0.2 connect-source lo0 remote-as 64513
+do wr
+
+r1...
+conf t
+ip msdp peer 1.0.0.2 connect-source lo0 remote-as 64512
+do wr
+
+
+---- mcast sources...
+
+asw1...
+
+conf t
+int vl 1
+ip addr 1.1.1.1 255.255.255.252
+exit
+exit
+wr
+
+
+verify...
+
+sh ip msdp ?
+
+

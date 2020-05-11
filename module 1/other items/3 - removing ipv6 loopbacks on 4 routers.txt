@@ -1,0 +1,47 @@
+assumes the following are done....
+"1 - ipv4 ucast base config - 6 routers - not asw1 or 2"
+"2 - adding ipv6 loopbacks pub address and LLs to transit"
+
+what i'm doing...
+removing pub routeable loopbacks on 4 routers but *not* dsw's... 
+
+...4 routers (r1,isp a, branch a, r2)...
+conf t
+int lo0
+no ipv6 addr
+no ipv6 enable
+no ipv6 eigrp 1
+do wr
+
+works but you don't see core...
+
+DSW2#traceroute
+Protocol [ip]: ipv6
+Target IPv6 address: 2626:2626::1
+Source address: 2626:2626::6
+Insert source routing header? [no]:
+Numeric display? [no]: yes
+Timeout in seconds [3]: 1
+Probe count [3]: 1
+Minimum Time to Live [1]:
+Maximum Time to Live [30]:
+Priority [0]:
+Port Number [0]:
+Type escape sequence to abort.
+Tracing the route to 2626:2626::1
+
+  1 FE80::76A2:E6FF:FED1:6859 0 msec
+  2  *
+  3  *
+  4  *
+  5 2626:2626::1 0 msec
+DSW2#
+
+
+
+DSW2#ping 2626:2626::1
+Type escape sequence to abort.
+Sending 5, 100-byte ICMP Echos to 2626:2626::1, timeout is 2 seconds:
+!!!!!
+Success rate is 100 percent (5/5), round-trip min/avg/max = 1/4/9 ms
+

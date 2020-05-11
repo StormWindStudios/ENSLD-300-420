@@ -1,0 +1,48 @@
+r2 (redis isis/eigrp)----dsw2----
+
+r2 (REDIS ISIS/EIGRP)...
+
+en
+conf t
+router eigrp 1
+network 0.0.0.0
+no auto-summary
+passive-interface Loopback0
+passive-interface f0/1/0
+do wr
+
+dsw2...
+
+en
+conf t
+router eigrp 1
+network 0.0.0.0
+no auto-summary
+passive-interface Loopback0
+passive-interface Vlan10
+do wr
+
+mutual redis...
+r2....
+en
+conf t
+router eigrp 1
+ redistribute isis level-1 metric 1000000 10 255 1 1500
+router isis
+ redistribute eigrp 1 metric 10 level-1
+do wr
+
+... results...
+
+DSW2...
+
+sh ip ro ei
+sh ip ei ne
+
+ASW2#ping 10.10.0.3 re 100
+
+Type escape sequence to abort.
+Sending 100, 100-byte ICMP Echos to 10.10.0.3, timeout is 2 seconds:
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+Success rate is 100 percent (100/100), round-trip min/avg/max = 1/3/11 ms

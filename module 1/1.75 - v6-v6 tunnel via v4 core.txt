@@ -1,0 +1,258 @@
+assumes the following are done....
+"1 - ipv4 ucast base config - 8 devices"
+"1.5 - dual stacking (adding v6) dsw routers and add asw routers"
+
+-------------------- next, tunneling...
+let's do (2) v6 islands over v4 core...
+
+first disable v6 in core... just doing on ISP A router...
+
+en
+conf t
+no ipv6 unicast-routing
+no ipv6 router eigrp 1
+int l 0
+no ipv6 addr
+do wr
+
+also...break ipv4 eigrp on DSW1 so this will be IPV6 only...
+
+en
+conf t
+no router eigrp 1
+do wr
+
+tunnel from r1 to branch A...
+
+r1...
+
+en
+conf t
+interface tunnel 0
+ ipv6 address 2626:2626:2626::/127
+ tunnel source f0/0/0
+ tunnel destination 10.10.3.1
+ tunnel mode ipv6ip
+exit
+
+R1(config)#do sh ipv6 tun
+Tun Route  LastInp              Packets Description
+  0   -      never                    0
+
+tunnel from branch A to r1...
+
+branch A...
+
+en
+conf t
+interface tunnel 0
+ ipv6 address 2626:2626:2626::1/127
+ tunnel source g0/1
+ tunnel destination 10.10.2.2
+ tunnel mode ipv6ip
+exit
+
+
+*** static routing into tunnel from r1...
+
+ipv6 route 2626:2626:2626:2700:0000:0000:0000:0000/56 tunnel 0
+
+*** redis static into eigrpv6 on r1...
+
+ipv6 router eigrp 1
+redistribute static metric 10000 10 255 1 1500
+do wr
+
+
+
+*** static routing into tunnel from branch A...
+
+ipv6 route 2626:2626:2626:2600:0000:0000:0000:0000/56 tunnel 0
+
+*** redis static into eigrpv6 on branch A...
+
+ipv6 router eigrp 1
+redistribute static metric 10000 10 255 1 1500
+do wr
+
+
+BranchA(config-rtr)#do sh ipv6 tun
+Tun Route  LastInp              Packets Description
+  0   -   00:06:49                  910
+
+ASW1#ping 2626:2626:2626:2701::2
+Type escape sequence to abort.
+Sending 5, 100-byte ICMP Echos to 2626:2626:2626:2701::2, timeout is 2 seconds:
+!!!!!
+Success rate is 100 percent (5/5), round-trip min/avg/max = 1/3/10 ms
+
+
+ASW1#trace 2626:2626:2626:2701::2
+Type escape sequence to abort.
+Tracing the route to 2626:2626:2626:2701::2
+
+  1 2626:2626:2626:2601::1 0 msec 5 msec 0 msec
+  2 2626:2626:2626:: 0 msec 0 msec 0 msec
+  3 2626:2626:2626::1 0 msec 5 msec 5 msec
+  4  *  *  *
+  5 2626:2626:2626:2701::1 0 msec 0 msec 0 msec
+  6 2626:2626:2626:2701::2 0 msec 16 msec 5 msec
+
+
+make routes learned over tunnels dynamic.....remove statics at tunnel endpoint, remove redis static into ipv6 eigrp...
+
+r1...
+en
+conf t
+ipv6 router eigrp 1
+no redistribute static metric 10000 10 255 1 1500
+exit
+no ipv6 route 2626:2626:2626:2700::/56 Tunnel0
+int tun 0
+ipv6 enable
+ ipv6 eigrp 1
+do wr
+
+branch A...
+en
+conf t
+ipv6 router eigrp 1
+no redistribute static metric 10000 10 255 1 1500
+exit
+no ipv6 route 2626:2626:2626:2600::/56 Tunnel0
+int tun 0
+ipv6 enable
+ ipv6 eigrp 1
+do wr
+
+ASW1#ping 2626:2626:2626:2701::2
+Type escape sequence to abort.
+Sending 5, 100-byte ICMP Echos to 2626:2626:2626:2701::2, timeout is 2 seconds:
+!!!!!
+Success rate is 100 percent (5/5), round-trip min/avg/max = 1/3/10 ms
+ASW1#
+
+ASW1#traceroute 2626:2626:2626:2701::2
+Type escape sequence to abort.
+Tracing the route to 2626:2626:2626:2701::2
+
+  1 2626:2626:2626:2601::1 0 msec 11 msec 5 msec
+  2 2626:2626:2626:: 0 msec 0 msec 0 msec
+  3 2626:2626:2626::1 5 msec 0 msec 0 msec
+  4  *  *  *
+  5 2626:2626:2626:2701::1 0 msec 5 msec 0 msec
+  6 2626:2626:2626:2701::2 10 msec 6 msec 0 msec
+ASW1#
+
+
+
+
+
+
+
+
+
+
+
+
+******************************************************
+*** OK BELOW HERE MAY BE OLD NOTES.....
+...in this scenario, know this, that g1/0/13 is dsw1 and g1/0/14 is dsw2 outside interface, facing v4 network, but i think i may have been able to use a loopback v4 source if it was reachable in the v4 core.
+
+dsw1...
+
+en
+conf t
+ipv6 route 2626:2626:2::/64 tunnel 0
+interface tunnel 0
+ ipv6 address 2626:2626:2626::1/127
+ tunnel source g1/0/13
+ tunnel destination 10.10.5.1
+ tunnel mode ipv6ip
+
+dsw2...
+
+en
+conf t
+ipv6 route 2626:2626:1::/64 tunnel 0
+interface tunnel 0
+ ipv6 address 2626:2626:2626::2/127
+ tunnel source g1/0/14
+ tunnel destination 10.10.1.2
+ tunnel mode ipv6ip
+
+verify...
+
+nice hidden command, shows recent packet and count...
+
+DSW1#sh ipv6 tun
+Tun Route  LastInp              Packets Description
+  0   -   00:00:31                  203
+
+...tunnel nicely hides the core...
+
+ASW2#traceroute 2626:2626:1::2
+
+Type escape sequence to abort.
+Tracing the route to 2626:2626:1::2
+
+  1 2626:2626:2::1 6 msec 0 msec 10 msec
+  2 2626:2626:2626::1 5 msec 6 msec 5 msec
+  3 2626:2626:1::2 5 msec 16 msec 11 msec
+ASW2#
+
+remove static's...
+
+dsw1...
+
+en
+conf t
+no ipv6 route 2626:2626:2::/64 tunnel 0
+do wr
+
+dsw2...
+
+en
+conf t
+no ipv6 route 2626:2626:1::/64 tunnel 0
+do wr
+
+....add ospf to both routers....
+
+conf t
+ipv6 router ospf 1
+int tun 0
+ipv6 ospf 1 area 0.0.0.0
+int vlan 10
+ipv6 ospf 1 area 0.0.0.0
+
+verify...
+
+sh ipv6 ospf database prefix
+
+sh ipv6 ospf int br
+
+sh ipv6 osp ne
+
+
+--------------------------------
+
+old info....
+
+r1....
+en
+conf t
+interface Loopback0
+ ipv6 address 2626:2626:2626:26FF::/128
+ ipv6 enable
+
+branch A....
+en
+conf t
+interface Loopback0
+ ipv6 address 2626:2626:2626:27FF::/128
+ ipv6 enable
+
+
+ipv6 route 2626:2626:2::/64 tunnel 0
+ipv6 route 2626:2626:1::/64 tunnel 0
